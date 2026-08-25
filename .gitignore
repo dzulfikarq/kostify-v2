@@ -34,3 +34,5 @@ npm-debug.log*
 
 # Test artifacts
 coverage/
+
+frontend/yarn.lock
