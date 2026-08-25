@@ -10,6 +10,11 @@ export function isPathActive(href: string, pathname: string): boolean {
     return pathname === "/";
   }
 
+  // Dashboard is the parent of all /dashboard/* — only exact match, otherwise it would always be active
+  if (href === "/dashboard") {
+    return pathname === "/dashboard";
+  }
+
   return pathname === href || pathname.startsWith(href + "/");
 }
 
