@@ -72,7 +72,7 @@ export default function NewKostPage() {
       <div className="flex items-center gap-3">
         <Link href="/dashboard/kosts" className="rounded-xl border bg-white px-3 py-1.5 text-sm hover:bg-zinc-50">← Kembali</Link>
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">{t("new.judul")}</h1>
+          <h1 className="text-lg font-semibold tracking-tight">{t("new.judul")}</h1>
           <p className="text-sm text-zinc-500">Isi detail kost — akan diverifikasi admin sebelum tayang di pencarian.</p>
         </div>
       </div>

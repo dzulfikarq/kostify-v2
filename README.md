@@ -1,6 +1,6 @@
 # Kostify — Booking Kost Terverifikasi
 
-Marketplace booking kost tanpa pembayaran online. Penyewa mencari kost terverifikasi, booking kamar yang tersedia, kamar ter-reserve 3 hari. Pemilik melakukan survey & deal luring, lalu approve booking menjadi kontrak sewa 1–12 bulan. Pembayaran di luar platform. Kost baru wajib diverifikasi Super Admin (anti-penipuan). Satu Next.js app: `/` publik untuk penyewa, `/dashboard` CMS untuk pemilik & admin.
+Marketplace booking kost tanpa pembayaran online. Penyewa mencari kost terverifikasi, booking kamar yang tersedia dengan tanggal survey, kamar ter-reserve 3 hari. Admin menugaskan teknisi untuk survey kost baru; hasil survey menentukan verifikasi. Pemilik melakukan survey & deal luring, lalu approve booking menjadi kontrak sewa 1–12 bulan. Pembayaran di luar platform. Satu Next.js app: `/` publik untuk penyewa, `/dashboard` CMS untuk pemilik, teknisi & admin.
 
 ---
 
@@ -25,23 +25,29 @@ Marketplace booking kost tanpa pembayaran online. Penyewa mencari kost terverifi
 ## Target User
 | Peran | Kebutuhan |
 |-------|-----------|
-| **Tenant** (pencari) | Cari kost, booking kamar, pantau booking/kontrak |
-| **Owner** (pemilik) | Kelola banyak kost & kamar, proses booking, akhiri kontrak, lihat okupansi |
-| **Super Admin** | Verifikasi kost baru, kelola user |
+| **Tenant** (pencari) | Cari kost, booking kamar + tanggal survey, chat dengan pemilik, pantau booking/kontrak |
+| **Owner** (pemilik) | Kelola banyak kost & kamar, proses booking, jadwal survey, akhiri kontrak, lihat okupansi |
+| **Teknisi** | Terima tugas survey kost dari admin, lihat detail kost, approve/reject hasil survey |
+| **Super Admin** | Verifikasi via teknisi atau manual, assign teknisi, kelola user & jadwal survey |
 
 ## Fitur
-- **Publik**: landing page (hero search, kategori, kost terbaru, CTA), daftar kost filter/sort/pagination, detail kost + daftar kamar + booking, detail kamar (galeri foto), register/login — semua dengan design system Kostara & dwibahasa ID/EN
-- **Tenant**: booking kamar (1 pending per kamar — partial unique index), batal pending, riwayat booking & kontrak
-- **Owner CMS**: analytics (okupansi, pending, revenue), CRUD kost/kamar + upload foto MinIO, inbox booking (approve/reject), kelola kontrak, akhiri sewa
-- **Super Admin**: verifikasi kost (pending→verified/rejected, alasan tolak via dialog), master semua kost (edit/hapus/toggle aktif), kelola user (nonaktifkan/ubah role)
-- **Bonus**: MinIO S3, expiry worker (pending→expired otomatis 72h), Redis rate-limit & cache, Docker Compose, notifikasi in-app (bell + polling)
+- **Publik**: landing page (hero search, kategori, kost terbaru, CTA), daftar kost filter/sort/pagination, detail kost + daftar kamar + booking (dengan tanggal survey maks. 5 hari ke depan), detail kamar (galeri foto), register (dengan gender)/login — design system Kostara & dwibahasa ID/EN
+- **Verifikasi email**: register → link verifikasi (dev: link tampil di response & log API) → login terblokir sampai verify; endpoint resend tersedia
+- **Chat 1:1**: tenant↔owner (tombol "Chat Pemilik" di detail kost/kamar), admin→owner dari halaman verifikasi; badge unread di header (polling 20s); halaman `/chat`
+- **Tenant**: booking kamar + tanggal survey (1 pending per kamar — partial unique index), batal pending, riwayat booking & kontrak
+- **Owner CMS**: analytics (okupansi, pending, revenue), CRUD kost/kamar + upload foto MinIO, inbox booking (approve/reject → kontrak), kelola kontrak, agenda event survey (readonly)
+- **Teknisi**: dashboard `/dashboard/teknisi` — daftar tugas survey, lihat detail kost (termasuk yang belum verified), setujui/tolak dengan catatan min. 5 karakter → status kost ikut berubah
+- **Super Admin**: verifikasi kost (assign teknisi — aksi manual setujui/tolak disembunyikan, tanda "Sudah diassign"), master semua kost (edit/hapus/toggle aktif), kelola user (buat owner/teknisi dengan gender, nonaktifkan, ubah role), kelola jadwal survey `/dashboard/events`
+- **Bonus**: MinIO S3, expiry worker (pending→expired otomatis 72h), Redis rate-limit & cache, Docker Compose, notifikasi in-app (bell + polling), auto-event saat booking/assign
 
 ### Business Flow
 ```
-Kost: pending ─verify→ verified / rejected
+Kost: pending ─survey teknisi (approve)→ verified | ─reject/teknisi tolak→ rejected
 Room: available ↔ reserved (booking) → occupied (kontrak) → available
 Booking: pending → approved→contract | rejected | expired (72h) | cancelled (tenant)
 Contract: active → ended
+Assignment: assigned → surveying → approved/rejected (decided)
+User: register → email_verified (login diblokir sebelum verify; user lama otomatis verified)
 ```
 
 ## Tech Stack
@@ -49,6 +55,7 @@ Contract: active → ended
 |---------|-------|
 | Backend | Go 1.26, Gin, GORM, PostgreSQL 16, golang-migrate (embed), JWT (access 15m + refresh 7d rotation), bcrypt, Redis 7, MinIO |
 | Frontend | Next.js 16 (App Router), React 19, TypeScript, Tailwind v4, TanStack Query/Table, Axios, Sonner, Recharts, @tailgrids/icons, i18n ID/EN custom (`src/i18n.tsx`) |
+| Modul backend | `auth` (+verify email), `users`, `kosts`, `bookings` (+survey_date), `survey` (assignment+events), `chat`, `uploads`, `platform/*` |
 | Infra | Docker Compose (api, frontend, db, redis, minio), Makefile |
 
 ## Arsitektur
@@ -82,11 +89,15 @@ Halaman publik memakai design system **Kostara** di `frontend/src/app/css/kostar
 
 Lihat `docs/product-foundation.md` untuk ERD lengkap. Inti:
 
-- `users` — role enum `super_admin|owner|tenant`, email unique
+- `users` — role enum `super_admin|owner|tenant|teknisi`, `gender` (`laki-laki`/`perempuan`), `email_verified`, email unique
 - `kosts` — `owner_id→users`, `gender` enum, `status` pending/verified/rejected, `is_active`, `photos/facilities text[]`, GIN index
 - `rooms` — `kost_id→kosts`, `unique(kost_id, room_number)`, `status` enum, `luas`, GIN
-- `bookings` — `room_id→rooms`, `tenant_id→users`, `status` enum, `expires_at`, **partial unique `room_id WHERE status='pending'`** (anti race), `idx expires_at WHERE pending`
+- `bookings` — `room_id→rooms`, `tenant_id→users`, `survey_date` (wajib, 0–5 hari dari hari ini), `status` enum, `expires_at`, **partial unique `room_id WHERE status='pending'`** (anti race), `idx expires_at WHERE pending`
 - `contracts` — `booking_id unique→bookings`, `room_id`, `tenant_id`, `start_date/end_date`, `status` active/ended
+- `email_verification_tokens` — `user_id`, `token_hash`, `expires_at` (24h)
+- `kost_assignments` — `kost_id→kosts`, `teknisi_id→users`, `assigned_by→users`, `status` assigned/surveying/approved/rejected, `note`, `decided_at`
+- `conversations` — pasangan 1:1 (`user_a_id` < `user_b_id`, unique pair), `messages` — `conversation_id`, `sender_id`, `body`, `read_at`
+- `events` — agenda survey: `title`, `kost_id`, `teknisi_id`, `scheduled_at`, dibuat otomatis saat booking/assign, admin bisa manual
 - `sessions` — `refresh_token_hash unique`, `expires_at`, `revoked_at`
 - `notifications` — `user_id→users`, `title/body/link`, `is_read`, index `(user_id, is_read, created_at DESC)`
 
@@ -135,18 +146,20 @@ Seed super admin otomatis saat api start (`ADMIN_EMAIL`).
 
 ## Data Dummy & Akun Test
 
-Seed data demo (20 owner, 20 kost, 80 kamar) tersedia di `db/seed_*.sql`:
+Seed data demo (10 kost Malang Raya + kamar) tersedia di `db/seed_malang.sql`:
 
 ```bash
-docker cp db/seed_kosts.sql kostify-v2-db-1:/tmp/ && docker exec kostify-v2-db-1 psql -U kostify -d kostify -f /tmp/seed_kosts.sql
-docker cp db/seed_rooms.sql kostify-v2-db-1:/tmp/ && docker exec kostify-v2-db-1 psql -U kostify -d kostify -f /tmp/seed_rooms.sql
+docker cp db/seed_malang.sql kostify-v2-db-1:/tmp/ && docker exec kostify-v2-db-1 psql -U kostify -d kostify -f /tmp/seed_malang.sql
 ```
 
 | Role | Email | Password |
 |------|-------|----------|
 | Super Admin | `admin@kostify.local` | `Admin123!` |
-| Owner (20 akun dummy) | `budi.santoso@example.com` dll (lihat `db/seed_kosts.sql`) | `Owner123!` |
-| Tenant | daftar sendiri via `/register` | — |
+| Owner (dummy) | `ahmad.fauzi@kostify.test` dll (5 akun, lihat `db/seed_malang.sql`) | `Owner123!` |
+| Teknisi (dummy) | `teknisi@kostify.test` | `Teknisi123!` |
+| Tenant | daftar sendiri via `/register` (verifikasi email wajib) | — |
+
+Catatan dev: link verifikasi email ditampilkan di response register/resend dan log API (belum ada SMTP).
 
 ## Menjalankan Aplikasi
 

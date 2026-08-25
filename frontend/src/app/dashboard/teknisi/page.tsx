@@ -1,5 +1,7 @@
 "use client";
 
+import { redirect } from "next/navigation";
+
 import { useState } from "react";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -36,7 +38,7 @@ export default function TeknisiDashboardPage() {
     onError: (e: any) => toast.error(e.response?.data?.error?.message || "Gagal menyimpan keputusan"),
   });
 
-  if (me && me.role !== "teknisi") return <div className="p-6 text-sm">Hanya teknisi</div>;
+  if (me && me.role !== "teknisi") redirect("/403");
 
   const pending = (assignments || []).filter((a) => !a.decided_at);
   const done = (assignments || []).filter((a) => a.decided_at);
@@ -44,7 +46,7 @@ export default function TeknisiDashboardPage() {
   return (
     <div className="space-y-5 p-2 lg:p-6">
       <div>
-        <h1 className="text-xl font-bold tracking-tight">Tugas Survey</h1>
+        <h1 className="text-lg font-semibold tracking-tight">Tugas Survey</h1>
         <p className="text-sm text-zinc-500">Kost yang ditugaskan untuk Anda survey. Buat keputusan setelah survey selesai.</p>
       </div>
 

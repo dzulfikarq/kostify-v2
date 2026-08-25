@@ -23,7 +23,9 @@ Marketplace booking-first **tanpa payment gateway**:
 - Booking kedaluwarsa otomatis 3 hari jika pemilik tidak menindaklanjuti.
 - Pemilik bertemu calon penyewa untuk survey & deal secara luring; baru setujui (`approved`) → kontrak aktif.
 - Pembayaran dilakukan langsung di luar platform — platform hanya mencatat kesepakatan.
-- Kost baru wajib diverifikasi super admin sebelum tayang (anti-penipuan).
+- Kost baru wajib diverifikasi sebelum tayang (anti-penipuan): super admin menugaskan **teknisi** untuk survey; hasil survey teknisi (approve/reject + catatan) menentukan status kost.
+- Registrasi wajib **verifikasi email** sebelum bisa login (link dikirim via email; di mode dev link tampil di response & log API).
+- Booking menyertakan **tanggal survey** (maks. 5 hari ke depan) yang otomatis menjadi agenda event pemilik.
 
 ### 1.3 Target Pengguna
 
@@ -31,7 +33,8 @@ Marketplace booking-first **tanpa payment gateway**:
 |-------|-----------|
 | **Tenant** (calon penghuni) | Cari kost sesuai kriteria, booking kamar, pantau status booking/kontrak sendiri |
 | **Owner** (pemilik kost) | Kelola banyak properti & kamar, proses booking, akhiri/perpanjang sewa, lihat statistik okupansi |
-| **Super Admin** | Verifikasi kost baru, kelola user, jaga kredibilitas platform |
+| **Teknisi** | Survey kost yang ditugaskan admin, approve/reject hasil survey |
+| **Super Admin** | Verifikasi kost (via teknisi atau manual), kelola user & jadwal survey, jaga kredibilitas platform |
 
 ### 1.4 Business Rules
 
@@ -75,6 +78,8 @@ Contract: active ──▶ ended       (masa habis otomatis / owner akhiri)
 | Verifikasi / tolak kost | ❌ | ❌ | ✅ |
 | Kelola user (nonaktifkan, ubah role) | ❌ | ❌ | ✅ |
 
+Role tambahan **Teknisi**: melihat tugas survey (`/teknisi/assignments`), melihat detail kost termasuk yang belum verified, dan memutuskan hasil survey (approve/reject + catatan) — tidak bisa mengelola kost/user.
+
 Authorization **selalu dievaluasi di backend** per request (middleware role + cek kepemilikan resource). Frontend hanya menyembunyikan menu/elemen.
 
 ---
@@ -93,6 +98,12 @@ erDiagram
     ROOMS ||--o{ BOOKINGS : receives
     ROOMS ||--o{ CONTRACTS : covers
     BOOKINGS ||--|| CONTRACTS : creates
+    USERS ||--o{ EMAIL_VERIFICATION_TOKENS : verifies
+    KOSTS ||--o{ KOST_ASSIGNMENTS : surveyed_via
+    USERS ||--o{ KOST_ASSIGNMENTS : assigned_teknisi
+    USERS ||--o{ CONVERSATIONS : chats
+    CONVERSATIONS ||--o{ MESSAGES : contains
+    KOSTS ||--o{ EVENTS : scheduled
 
     users {
         uuid id PK
@@ -100,8 +111,10 @@ erDiagram
         varchar email UK
         varchar phone
         varchar password_hash
-        user_role role "super_admin|owner|tenant"
+        user_role role "super_admin|owner|tenant|teknisi"
+        varchar gender "laki-laki|perempuan"
         boolean is_active
+        boolean email_verified
         timestamptz created_at
         timestamptz updated_at
     }
@@ -141,9 +154,48 @@ erDiagram
         uuid tenant_id FK
         booking_status status "pending|approved|rejected|expired|cancelled"
         text reject_reason
+        date survey_date "0-5 hari dari hari ini"
         timestamptz expires_at
         uuid decided_by FK "nullable"
         timestamptz decided_at "nullable"
+    }
+    email_verification_tokens {
+        uuid id PK
+        uuid user_id FK
+        varchar token_hash
+        timestamptz expires_at "24 jam"
+        timestamptz used_at "nullable"
+    }
+    kost_assignments {
+        uuid id PK
+        uuid kost_id FK
+        uuid teknisi_id FK
+        uuid assigned_by FK
+        assignment_status status "assigned|surveying|approved|rejected"
+        text note "catatan hasil survey, min 5 karakter"
+        timestamptz decided_at "nullable"
+    }
+    conversations {
+        uuid id PK
+        uuid user_a_id FK "sorted pair, UNIQUE(user_a_id,user_b_id)"
+        uuid user_b_id FK
+        timestamptz last_message_at
+    }
+    messages {
+        uuid id PK
+        uuid conversation_id FK
+        uuid sender_id FK
+        text body
+        timestamptz read_at "nullable"
+    }
+    events {
+        uuid id PK
+        uuid created_by FK
+        uuid kost_id FK "nullable"
+        uuid teknisi_id FK "nullable"
+        varchar title
+        timestamptz scheduled_at
+        text notes
     }
     contracts {
         uuid id PK
@@ -196,6 +248,8 @@ Konvensi query listing: `?page=1&limit=20&search=&sort=created_at&order=desc&sta
 | POST | `/auth/refresh` | auth(refresh cookie) | Rotasi access + refresh token | 200 |
 | GET | `/auth/me` | auth | Profil user saat ini | 200 |
 | GET | `/auth/csrf` | publik | Ambil CSRF token (double-submit) | 200 |
+| POST | `/auth/verify-email` | publik | Verifikasi email `{token}` | 200 |
+| POST | `/auth/resend-verification` | publik | Kirim ulang link verifikasi `{email}`; login terblokir `EMAIL_NOT_VERIFIED` sampai verify | 200 |
 
 ### 3.2 Publik (tanpa login)
 
@@ -240,9 +294,26 @@ Semua endpoint owner memvalidasi **kepemilikan resource** (bukan cuma role).
 | PATCH | `/admin/kosts/:id/verify` | Verifikasi kost | 200 |
 | PATCH | `/admin/kosts/:id/reject` | Tolak + `{note}` | 200 |
 | GET | `/admin/users` | Semua user, search & filter role | 200 |
-| PATCH | `/admin/users/:id` | Ubah `is_active` / `role` | 200 |
+| PATCH | `/admin/users/:id` | Ubah `is_active` / `role` / `email_verified` | 200 |
+| POST | `/admin/users` | Buat user (owner/teknisi) — otomatis verified | 201 |
+| POST | `/admin/kosts/:id/assign` | Assign teknisi survey `{teknisi_id, scheduled_at?}` → assignment + event | 200 |
+| GET | `/admin/assignments` | Semua assignment survey | 200 |
+| POST | `/admin/events` | Buat jadwal survey manual | 201 |
+| DELETE | `/admin/events/:id` | Hapus jadwal survey | 204 |
 
-### 3.6 Lain-lain
+### 3.6 Teknisi & Chat & Events
+
+| Method | Endpoint | Akses | Deskripsi |
+|--------|----------|-------|-----------|
+| GET | `/teknisi/assignments` | teknisi | Tugas survey milik sendiri |
+| PATCH | `/teknisi/assignments/:id/decide` | teknisi | Putuskan `{decision: approved\|rejected, note}` (note min. 5 karakter) → status kost ikut berubah |
+| GET | `/events` | auth | Agenda survey (admin: semua; owner/teknisi: miliknya) |
+| POST | `/chat/start` | auth | Mulai/ambil percakapan 1:1 `{with_user_id}` |
+| GET | `/chat/conversations` | auth | Daftar percakapan + pesan terakhir + unread |
+| GET | `/chat/unread` | auth | Total unread (badge header, polling 20s) |
+| GET/POST | `/chat/conversations/:id/messages` | auth | Baca / kirim pesan |
+
+### 3.7 Lain-lain
 
 | Method | Endpoint | Deskripsi |
 |--------|----------|-----------|
@@ -266,7 +337,9 @@ Satu aplikasi Next.js App Router — analogi WordPress: `/` situs publik, `/dash
 /kosts                   Listing: search, filter (kota, harga, gender, fasilitas), sort, pagination
 /kosts/[id]              Detail: galeri, deskripsi, daftar kamar + badge status, tombol Booking
 /login                   Login
-/register                Registrasi (pilih: cari kost / punya kost)
+/register                Registrasi (gender, notice verifikasi email)
+/verify-email            Verifikasi email via token
+/chat                    Chat 1:1 (badge unread di header)
 /my-bookings             (auth) Booking saya + status badge + countdown expiry + cancel
 /profile                 (auth) Data profil, ganti foto
 ```
@@ -280,8 +353,10 @@ Satu aplikasi Next.js App Router — analogi WordPress: `/` situs publik, `/dash
 /dashboard/kosts/[id]    Detail & edit kost + kelola kamar
 /dashboard/bookings      Inbox booking: tab Pending (countdown) / Riwayat; aksi Approve (modal isi tanggal+ durasi) / Reject (modal alasan)
 /dashboard/contracts     Kontrak aktif; aksi akhiri sewa (confirm dialog)
-/dashboard/verification  [super admin] Antrian verifikasi kost
-/dashboard/users         [super admin] Kelola user
+/dashboard/verification  [super admin] Antrian verifikasi: assign teknisi (+tanda "Sudah diassign"), chat pemilik
+/dashboard/teknisi       [teknisi] Tugas survey: lihat kost, setujui/tolak + catatan
+/dashboard/events        [admin] Kelola jadwal survey; owner/teknisi readonly
+/dashboard/users         [super admin] Kelola user (buat owner/teknisi, role, gender, verifikasi manual)
 ```
 
 Proteksi route: middleware Next.js membaca session cookie untuk redirect awal (UX), backend tetap sumber kebenaran otorisasi.

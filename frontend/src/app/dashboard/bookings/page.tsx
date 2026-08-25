@@ -53,7 +53,7 @@ export default function BookingsPage() {
   return (
     <div className="space-y-5 p-2 lg:p-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">{t("bk.judul")}</h1>
+        <h1 className="text-lg font-semibold tracking-tight">{t("bk.judul")}</h1>
         <p className="text-sm text-zinc-500">Kelola permintaan booking — setujui setelah survey, tolak jika tidak cocok</p>
       </div>
 

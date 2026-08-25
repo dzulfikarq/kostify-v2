@@ -1,5 +1,7 @@
 "use client";
 
+import { redirect } from "next/navigation";
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { dashboardApi } from "@/services/api/dashboard";
 import { useMe } from "@/hooks/useAuth";
@@ -61,13 +63,13 @@ export default function UsersPage() {
     onError: (e: any) => toast.error(e.response?.data?.error?.message || "Gagal hapus"),
   });
 
-  if (me && me.role !== "super_admin") return <div className="p-6 text-sm">Hanya super admin</div>;
+  if (me && me.role !== "super_admin") redirect("/403");
 
   return (
     <div className="space-y-5 p-2 lg:p-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">{t("us.judul")}</h1>
+          <h1 className="text-lg font-semibold tracking-tight">{t("us.judul")}</h1>
           <p className="text-sm text-zinc-500">CRUD user — semua aksi butuh konfirmasi</p>
         </div>
         <Button onClick={() => setShowCreate((v) => !v)} className="shadow-sm">{t("us.buat")}</Button>

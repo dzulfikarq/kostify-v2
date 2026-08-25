@@ -1,5 +1,7 @@
 "use client";
 
+import { redirect } from "next/navigation";
+
 import { useState } from "react";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -53,12 +55,12 @@ export default function VerificationPage() {
     onError: (e: any) => toast.error(e.response?.data?.error?.message || "Gagal assign teknisi"),
   });
 
-  if (user && user.role !== "super_admin") return <div className="p-6 text-sm">Hanya super admin</div>;
+  if (user && user.role !== "super_admin") redirect("/403");
 
   return (
     <div className="space-y-5 p-2 lg:p-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">{t("vf.judul")}</h1>
+        <h1 className="text-lg font-semibold tracking-tight">{t("vf.judul")}</h1>
         <p className="text-sm text-zinc-500">{t("vf.sub")}</p>
       </div>
 

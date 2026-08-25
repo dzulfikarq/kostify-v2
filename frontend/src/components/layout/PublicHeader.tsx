@@ -44,6 +44,7 @@ export function PublicHeader() {
           <nav className="header-nav" aria-label="Navigasi utama">
             <Link href="/kosts">{t("ph.cari")}</Link>
             {user && <Link href="/my-bookings">{t("ph.booking_saya")}</Link>}
+            {user && user.role === "teknisi" && <Link href="/dashboard/teknisi">{t("ph.dashboard")}</Link>}
             {user && (user.role === "owner" || user.role === "super_admin") && (
               <Link href="/dashboard">{t("ph.dashboard")}</Link>
             )}
@@ -100,6 +101,9 @@ export function PublicHeader() {
         <nav>
           <Link href="/kosts" onClick={() => setMobileMenuOpen(false)}>{t("ph.cari")}</Link>
           {user && <Link href="/my-bookings" onClick={() => setMobileMenuOpen(false)}>{t("ph.booking_saya")}</Link>}
+          {user && user.role === "teknisi" && (
+            <Link href="/dashboard/teknisi" onClick={() => setMobileMenuOpen(false)}>{t("ph.dashboard")}</Link>
+          )}
           {user && (user.role === "owner" || user.role === "super_admin") && (
             <Link href="/dashboard" onClick={() => setMobileMenuOpen(false)}>{t("ph.dashboard")}</Link>
           )}

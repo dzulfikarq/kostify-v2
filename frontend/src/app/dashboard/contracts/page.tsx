@@ -36,7 +36,7 @@ export default function ContractsPage() {
   return (
     <div className="space-y-5 p-2 lg:p-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">{t("nav.kontrak")}</h1>
+        <h1 className="text-lg font-semibold tracking-tight">{t("nav.kontrak")}</h1>
         <p className="text-sm text-zinc-500">Sewa aktif — akhiri lebih awal jika penyewa keluar</p>
       </div>
 

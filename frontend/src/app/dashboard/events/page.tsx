@@ -74,7 +74,7 @@ export default function EventsPage() {
     <div className="space-y-5 p-2 lg:p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold tracking-tight">Jadwal Survey</h1>
+          <h1 className="text-lg font-semibold tracking-tight">Jadwal Survey</h1>
           <p className="text-sm text-zinc-500">
             {isAdmin
               ? "Buat & kelola jadwal survey kost, assign teknisi."

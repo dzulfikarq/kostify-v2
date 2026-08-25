@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
 import { TableRoot, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/tailgrids/core/table";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams, redirect } from "next/navigation";
 import { Suspense } from "react";
 import { useLang } from "@/i18n";
 
@@ -42,13 +42,13 @@ function KostsContent() {
   }
 
   if (!user) return <div className="p-6 text-sm text-zinc-500">Memuat...</div>;
-  if (user.role !== "owner" && user.role !== "super_admin") return <div className="p-6 text-sm">Hanya owner</div>;
+  if (user.role !== "owner" && user.role !== "super_admin") redirect("/403");
 
   return (
     <div className="space-y-5 p-2 lg:p-6">
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">{t("nav.kostsaya")}</h1>
+          <h1 className="text-lg font-semibold tracking-tight">{t("nav.kostsaya")}</h1>
           <p className="text-sm text-zinc-500">Kelola properti — {data?.pagination.total ?? 0} kost • {status || "semua status"}</p>
         </div>
         <Link href="/dashboard/kosts/new"><Button className="shadow-sm">{t("kost.tambah")}</Button></Link>
