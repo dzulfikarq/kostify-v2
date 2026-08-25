@@ -1,0 +1,73 @@
+{
+  "info": {
+    "name": "Kostify API",
+    "description": "Kostify — booking kost verified (cookie + CSRF). Base URL via frontend proxy http://localhost:3000/api/v1 or direct http://localhost:8080/api/v1. All auth cookies HttpOnly. Send X-CSRF-Token header for POST/PATCH/DELETE (value from csrf_token cookie).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [{ "key": "baseUrl", "value": "http://localhost:3000/api/v1" }],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        { "name": "GET csrf", "request": { "method": "GET", "url": "{{baseUrl}}/auth/csrf" } },
+        { "name": "POST register tenant", "request": { "method": "POST", "url": "{{baseUrl}}/auth/register", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"name\":\"Budi\",\"email\":\"budi@test.local\",\"password\":\"Password123\",\"role\":\"tenant\"}" } } },
+        { "name": "POST register owner", "request": { "method": "POST", "url": "{{baseUrl}}/auth/register", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"name\":\"Pak Owner\",\"email\":\"owner@test.local\",\"password\":\"Password123\",\"role\":\"owner\"}" } } },
+        { "name": "POST login", "request": { "method": "POST", "url": "{{baseUrl}}/auth/login", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"email\":\"budi@test.local\",\"password\":\"Password123\"}" } } },
+        { "name": "GET me", "request": { "method": "GET", "url": "{{baseUrl}}/auth/me" } },
+        { "name": "POST refresh", "request": { "method": "POST", "url": "{{baseUrl}}/auth/refresh" } },
+        { "name": "POST logout", "request": { "method": "POST", "url": "{{baseUrl}}/auth/logout", "header": [{ "key": "X-CSRF-Token", "value": "{{csrf_token}}" }] } }
+      ]
+    },
+    {
+      "name": "Public Kosts",
+      "item": [
+        { "name": "GET kosts verified (search/filter/pagination)", "request": { "method": "GET", "url": "{{baseUrl}}/kosts?page=1&limit=12&search=&city=Jakarta&gender=campur&sort=created_at&order=desc" } },
+        { "name": "GET kost detail", "request": { "method": "GET", "url": "{{baseUrl}}/kosts/:id" } }
+      ]
+    },
+    {
+      "name": "Owner",
+      "item": [
+        { "name": "GET owner kosts", "request": { "method": "GET", "url": "{{baseUrl}}/owner/kosts" } },
+        { "name": "POST owner kost", "request": { "method": "POST", "url": "{{baseUrl}}/owner/kosts", "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "X-CSRF-Token", "value": "{{csrf_token}}" }], "body": { "mode": "raw", "raw": "{\"name\":\"Kost Bahagia\",\"city\":\"Jakarta\",\"gender\":\"campur\",\"address\":\"Jl Merdeka\",\"description\":\"Nyaman\",\"facilities\":[\"wifi\",\"ac\"],\"photos\":[]}" } } },
+        { "name": "PATCH owner kost", "request": { "method": "PATCH", "url": "{{baseUrl}}/owner/kosts/:id", "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "X-CSRF-Token", "value": "{{csrf_token}}" }], "body": { "mode": "raw", "raw": "{\"name\":\"Kost Bahagia Update\"}" } } },
+        { "name": "GET rooms by kost", "request": { "method": "GET", "url": "{{baseUrl}}/owner/kosts/:kostId/rooms" } },
+        { "name": "POST room", "request": { "method": "POST", "url": "{{baseUrl}}/owner/kosts/:kostId/rooms", "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "X-CSRF-Token", "value": "{{csrf_token}}" }], "body": { "mode": "raw", "raw": "{\"room_number\":\"A101\",\"price_monthly\":1500000,\"facilities\":[\"ac\"]}" } } },
+        { "name": "PATCH room", "request": { "method": "PATCH", "url": "{{baseUrl}}/owner/rooms/:id", "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "X-CSRF-Token", "value": "{{csrf_token}}" }], "body": { "mode": "raw", "raw": "{\"status\":\"maintenance\"}" } } },
+        { "name": "DELETE room", "request": { "method": "DELETE", "url": "{{baseUrl}}/owner/rooms/:id", "header": [{ "key": "X-CSRF-Token", "value": "{{csrf_token}}" }] } },
+        { "name": "GET owner bookings", "request": { "method": "GET", "url": "{{baseUrl}}/owner/bookings?status=pending" } },
+        { "name": "PATCH approve booking", "request": { "method": "PATCH", "url": "{{baseUrl}}/owner/bookings/:id/approve", "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "X-CSRF-Token", "value": "{{csrf_token}}" }], "body": { "mode": "raw", "raw": "{\"start_date\":\"2026-09-01\",\"duration_months\":3}" } } },
+        { "name": "PATCH reject booking", "request": { "method": "PATCH", "url": "{{baseUrl}}/owner/bookings/:id/reject", "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "X-CSRF-Token", "value": "{{csrf_token}}" }], "body": { "mode": "raw", "raw": "{\"reason\":\"Tidak cocok\"}" } } },
+        { "name": "GET owner contracts", "request": { "method": "GET", "url": "{{baseUrl}}/owner/contracts" } },
+        { "name": "PATCH end contract", "request": { "method": "PATCH", "url": "{{baseUrl}}/owner/contracts/:id/end", "header": [{ "key": "X-CSRF-Token", "value": "{{csrf_token}}" }] } },
+        { "name": "GET stats", "request": { "method": "GET", "url": "{{baseUrl}}/owner/stats" } }
+      ]
+    },
+    {
+      "name": "Tenant Bookings",
+      "item": [
+        { "name": "POST booking", "request": { "method": "POST", "url": "{{baseUrl}}/bookings", "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "X-CSRF-Token", "value": "{{csrf_token}}" }], "body": { "mode": "raw", "raw": "{\"room_id\":\"<room_uuid>\"}" } } },
+        { "name": "GET my bookings", "request": { "method": "GET", "url": "{{baseUrl}}/bookings/me" } },
+        { "name": "PATCH cancel booking", "request": { "method": "PATCH", "url": "{{baseUrl}}/bookings/:id/cancel", "header": [{ "key": "X-CSRF-Token", "value": "{{csrf_token}}" }] } },
+        { "name": "GET my contracts", "request": { "method": "GET", "url": "{{baseUrl}}/contracts/me" } }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        { "name": "GET admin kosts pending", "request": { "method": "GET", "url": "{{baseUrl}}/admin/kosts?status=pending" } },
+        { "name": "PATCH verify kost", "request": { "method": "PATCH", "url": "{{baseUrl}}/admin/kosts/:id/verify", "header": [{ "key": "X-CSRF-Token", "value": "{{csrf_token}}" }] } },
+        { "name": "PATCH reject kost", "request": { "method": "PATCH", "url": "{{baseUrl}}/admin/kosts/:id/reject", "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "X-CSRF-Token", "value": "{{csrf_token}}" }], "body": { "mode": "raw", "raw": "{\"note\":\"Foto tidak valid\"}" } } },
+        { "name": "GET users", "request": { "method": "GET", "url": "{{baseUrl}}/admin/users" } },
+        { "name": "PATCH user", "request": { "method": "PATCH", "url": "{{baseUrl}}/admin/users/:id", "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "X-CSRF-Token", "value": "{{csrf_token}}" }], "body": { "mode": "raw", "raw": "{\"is_active\":false}" } } }
+      ]
+    },
+    {
+      "name": "Upload",
+      "item": [
+        { "name": "POST upload image", "request": { "method": "POST", "url": "{{baseUrl}}/uploads/images", "header": [{ "key": "X-CSRF-Token", "value": "{{csrf_token}}" }], "body": { "mode": "formdata", "formdata": [{ "key": "file", "type": "file", "src": [] }] } } }
+      ]
+    },
+    { "name": "Health", "request": { "method": "GET", "url": "http://localhost:8080/healthz" } }
+  ]
+}

@@ -1,0 +1,198 @@
+# Kostify — Booking Kost Terverifikasi
+
+Marketplace booking kost tanpa pembayaran online. Penyewa mencari kost terverifikasi, booking kamar yang tersedia, kamar ter-reserve 3 hari. Pemilik melakukan survey & deal luring, lalu approve booking menjadi kontrak sewa 1–12 bulan. Pembayaran di luar platform. Kost baru wajib diverifikasi Super Admin (anti-penipuan). Satu Next.js app: `/` publik untuk penyewa, `/dashboard` CMS untuk pemilik & admin.
+
+---
+
+## Daftar Isi
+- Problem & Target User
+- Fitur
+- Tech Stack & Arsitektur
+- Desain Database
+- Instalasi & Konfigurasi
+- Migrasi & Menjalankan Aplikasi
+- Testing
+- Dokumentasi API
+- Keputusan Teknis & Trade-off
+- Future Improvement
+
+## Problem
+1. Pemilik kelola kamar manual (WA/catatan) → booking tumpang tindih
+2. Calon penyewa tidak tahu kamar mana benar-benar kosong
+3. Iklan kost palsu → calon rugi DP sebelum survey
+4. Tidak ada jejak kesepakatan sewa (durasi, tanggal mulai)
+
+## Target User
+| Peran | Kebutuhan |
+|-------|-----------|
+| **Tenant** (pencari) | Cari kost, booking kamar, pantau booking/kontrak |
+| **Owner** (pemilik) | Kelola banyak kost & kamar, proses booking, akhiri kontrak, lihat okupansi |
+| **Super Admin** | Verifikasi kost baru, kelola user |
+
+## Fitur
+- **Publik**: landing + search, daftar kost filter/sort/pagination, detail + daftar kamar + booking, register/login
+- **Tenant**: booking kamar (1 pending per kamar — partial unique index), batal pending, riwayat booking & kontrak
+- **Owner CMS**: analytics (okupansi, pending, revenue), CRUD kost/kamar + upload foto MinIO, inbox booking (approve/reject), kelola kontrak, akhiri sewa
+- **Super Admin**: verifikasi kost (pending→verified/rejected), kelola user (nonaktifkan/ubah role)
+- **Bonus**: MinIO S3, expiry worker (pending→expired otomatis 72h), Redis rate-limit & cache, Docker Compose
+
+### Business Flow
+```
+Kost: pending ─verify→ verified / rejected
+Room: available ↔ reserved (booking) → occupied (kontrak) → available
+Booking: pending → approved→contract | rejected | expired (72h) | cancelled (tenant)
+Contract: active → ended
+```
+
+## Tech Stack
+| Lapisan | Stack |
+|---------|-------|
+| Backend | Go 1.26, Gin, GORM, PostgreSQL 16, golang-migrate (embed), JWT (access 15m + refresh 7d rotation), bcrypt, Redis 7, MinIO |
+| Frontend | Next.js 16 (App Router), React 19, TypeScript, Tailwind v4, TanStack Query/Table, Axios, Sonner, Recharts |
+| Infra | Docker Compose (api, frontend, db, redis, minio), Makefile |
+
+## Arsitektur
+
+```mermaid
+flowchart LR
+  Browser --> FE[Next.js :3000 — Rewrites /api/v1 → api:8080]
+  FE --> BE[Go :8080 — Gin layered handler→service→repo]
+  BE --> PG[(PostgreSQL)]
+  BE --> RD[(Redis — rate limit)]
+  BE --> MO[(MinIO)]
+  BE --> WRK[Worker ticker expiry]
+```
+
+- **Cookie-based auth** (HttpOnly, Secure, SameSite=Lax, Path, Max-Age) + **CSRF double-submit** (`csrf_token` cookie + `X-CSRF-Token` header). Same-origin via Next.js rewrites → bebas CORS.
+- **Refresh rotation** + reuse detection → revoke-all jika refresh lama dipakai ulang (tanda theft).
+- **Layered** `handler→service→repo` per modul (`auth`, `kosts`, `bookings`, `users`, `uploads`, `platform/*`).
+- **Migrasi SQL mentah** (`000001_init`) reproducible dari DB kosong, `make migrate-up/down`.
+
+## Desain Database
+
+Lihat `docs/product-foundation.md` untuk ERD lengkap. Inti:
+
+- `users` — role enum `super_admin|owner|tenant`, email unique
+- `kosts` — `owner_id→users`, `gender` enum, `status` pending/verified/rejected, `photos/facilities text[]`, GIN index
+- `rooms` — `kost_id→kosts`, `unique(kost_id, room_number)`, `status` enum, GIN
+- `bookings` — `room_id→rooms`, `tenant_id→users`, `status` enum, `expires_at`, **partial unique `room_id WHERE status='pending'`** (anti race), `idx expires_at WHERE pending`
+- `contracts` — `booking_id unique→bookings`, `room_id`, `tenant_id`, `start_date/end_date`, `status` active/ended
+- `sessions` — `refresh_token_hash unique`, `expires_at`, `revoked_at`
+
+`text[]` disimpan sebagai `pq.StringArray` (GORM) agar `{"wifi","ac"}` valid Postgres; jika butuh metadata fasilitas dinamis, pecah jadi pivot.
+
+## Instalasi
+
+```bash
+git clone <repo> && cd kostify-v2
+cp .env.example .env
+cp backend/.env.example backend/.env   # opsional, compose pakai .env root
+cp frontend/.env.example frontend/.env
+```
+
+Prasyarat: Docker & Docker Compose. Go 1.26 & Node 22 hanya jika ingin jalan tanpa Docker.
+
+## Konfigurasi Env
+
+Root `.env` (dipakai compose):
+```
+POSTGRES_USER=kostify
+POSTGRES_PASSWORD=kostify
+POSTGRES_DB=kostify
+MINIO_ACCESS_KEY=minioadmin
+MINIO_SECRET_KEY=minioadmin
+JWT_ACCESS_SECRET=change-me-32chars
+JWT_REFRESH_SECRET=change-me-32chars
+ADMIN_EMAIL=admin@kostify.local
+ADMIN_PASSWORD=Admin123!
+```
+
+Backend `.env` menambah `BOOKING_EXPIRY_HOURS=72`, `REDIS_ADDR`, `MINIO_ENDPOINT`, `FRONTEND_URL`.
+
+Frontend `.env` hanya `NEXT_PUBLIC_*` jika perlu; proxy rewrites pakai `API_INTERNAL_URL=http://api:8080` (compose).
+
+## Migrasi
+
+```bash
+make migrate-up      # docker compose exec api /app/migrate up
+make migrate-down    # down 1 step
+make migrate-version # cek versi
+```
+Migrasi embed di binary (`backend/migrations/*.sql` + `migrations.go`), dijalankan dari DB kosong secara reproducible.
+
+Seed super admin otomatis saat api start (`ADMIN_EMAIL`).
+
+## Menjalankan Aplikasi
+
+```bash
+docker compose up -d --build   # atau make up
+docker compose logs -f api frontend
+# Frontend: http://localhost:3000  (publik + /dashboard)
+# API:      http://localhost:8080/healthz  (via proxy juga di /api/v1/*)
+# MinIO:    http://localhost:9001 (console)
+make migrate-up
+```
+
+Tanpa Docker (dev):
+```bash
+# terminal 1: backend
+cd backend && go run ./cmd/api
+# terminal 2: frontend
+cd frontend && npm install && npm run dev
+```
+
+## Testing
+
+```bash
+# Backend unit (DTO & worker logic, tanpa DB)
+cd backend && go test ./...
+
+# E2E manual (butuh compose up)
+python backend/test_m2.py  # kost & room + upload
+python backend/test_m3.py  # booking race, approve→contract, expiry, stats
+# atau via curl/postman lihat docs/postman_collection.json
+
+# Frontend
+cd frontend && npm run build  # type-check + build
+# component test (vitest) — lihat frontend/src/components/ui/button.test.tsx
+```
+
+## Dokumentasi API
+
+- **Postman**: `docs/postman_collection.json` — import ke Postman/Insomnia, set `baseUrl=http://localhost:3000/api/v1`, flow login otomatis set cookie, kirim `X-CSRF-Token` dari `csrf_token` cookie untuk POST/PATCH/DELETE.
+- **OpenAPI**: `docs/product-foundation.md` §3 API Contract (tabel lengkap) + envelope konsisten `{success,data,message}` / `{success,error:{code,message,details}}`.
+- **Swagger**: `go run ./cmd/api` expose `/healthz`; swagger UI bisa di-serve dari `docs/openapi.yaml` via https://editor.swagger.io (opsional `swag init` jika ingin `http-swagger`).
+
+Status code: 200/201/204/400/401/403/404/409/422/429/500 — terpusat di `internal/http/response`.
+
+Interceptor Axios: 401→single-flight refresh, 403, 422 (tampilkan `details` per field), 429, 500. Hindari infinite retry, duplicate refresh, race condition, refresh gagal → logout.
+
+## Keputusan Teknis & Trade-off
+
+| Keputusan | Alasan | Konsekuensi |
+|-----------|--------|-------------|
+| Cookie HttpOnly + SameSite=Lax + proxy rewrites | Imun XSS steal, bebas CORS, first-party | Perlu CSRF double-submit |
+| Partial unique index `room_id WHERE pending` | Race 2 tenant booking kamar sama diselesaikan di DB (bukan `if`) | — |
+| Expiry worker in-process ticker + CTE atomic | Nol infra tambahan, idempotent, cukup 1 instance | Multi-instance perlu Redis queue (asynq) — upgrade path jelas |
+| `text[]` via `pq.StringArray` | Query `? = ANY(facilities)` + GIN index | Jika butuh metadata, pecah pivot |
+| Satu Next.js app `(public)` + `/dashboard` | Satu origin → cookie first-party, satu build, analogi `wp-admin` | Deps template (`fullcalendar` dll) ikut di publik (tree-shake per route) |
+| MinIO (S3 API) | Bonus storage, kompatibel S3 produksi | Self-host perlu volume |
+| `TranslateError` GORM | `ErrDuplicatedKey` presisi untuk 409 | — |
+
+## Future Improvement
+- Per-account rate limit + sliding window, Redis blacklist access token untuk instant revoke
+- Pivot tabel fasilitas + GIN trigram untuk search alamat
+- Notifikasi email/wa saat booking masuk (queue worker + asynq)
+- Audit trail siapa ubah status kamar/kontrak
+- E2E Playwright untuk critical flow login→booking→approve→verify
+
+---
+
+## Deliverables Checklist (assignment)
+- [x] Backend Go+Gin+GORM+Postgres, layered, `/api/v1`, envelope, centralized error
+- [x] Frontend Next.js+Tailwind+Axios (interceptor 401/403/422/429/500), RBAC, search/filter/sort/pagination, reusable components, loading/empty/error/toast/confirm/responsive
+- [x] Cookie HttpOnly/Secure/SameSite/Path/Max-Age + CSRF, RBAC backend, migration up/down reproducible, business flow 3-state, validasi penuh
+- [x] MinIO, worker expiry, Docker Compose, `.env.example`, README, Postman collection
+- [x] Git history (commit Meilensteine)
+
+Lihat `docs/product-foundation.md` untuk fondasi produk & keputusan lengkap.

@@ -1,0 +1,17 @@
+BEGIN;
+
+DROP TABLE IF EXISTS contracts;
+DROP TABLE IF EXISTS bookings;
+DROP TABLE IF EXISTS rooms;
+DROP TABLE IF EXISTS kosts;
+DROP TABLE IF EXISTS sessions;
+DROP TABLE IF EXISTS users;
+
+DROP TYPE IF EXISTS contract_status;
+DROP TYPE IF EXISTS booking_status;
+DROP TYPE IF EXISTS room_status;
+DROP TYPE IF EXISTS kost_status;
+DROP TYPE IF EXISTS kost_gender;
+DROP TYPE IF EXISTS user_role;
+
+COMMIT;
