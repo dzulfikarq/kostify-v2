@@ -147,7 +147,7 @@ func (r *Repository) ListOwnerBookings(ctx context.Context, ownerID uuid.UUID, p
 		return nil, 0, err
 	}
 	var bookings []models.Booking
-	if err := q.Preload("Room").Order("bookings.created_at DESC").Offset((page-1)*limit).Limit(limit).Find(&bookings).Error; err != nil {
+	if err := q.Preload("Room").Preload("Tenant").Order("bookings.created_at DESC").Offset((page-1)*limit).Limit(limit).Find(&bookings).Error; err != nil {
 		return nil, 0, err
 	}
 	return bookings, total, nil
