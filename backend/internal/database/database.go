@@ -19,7 +19,13 @@ func Connect(dsn string) (*DB, error) {
 	var gdb *gorm.DB
 	var err error
 	for attempt := 1; attempt <= 10; attempt++ {
-		gdb, err = gorm.Open(postgres.Open(dsn), &gorm.Config{
+		// PreferSimpleProtocol: skip server-side prepared statements so
+		// schema changes (migrations/ALTER TABLE) never break the cached
+		// plan pool ("cached plan must not change result type").
+		gdb, err = gorm.Open(postgres.New(postgres.Config{
+			DSN:                  dsn,
+			PreferSimpleProtocol: true,
+		}), &gorm.Config{
 			Logger:          gormlogger.Default.LogMode(gormlogger.Warn),
 			TranslateError: true,
 		})
