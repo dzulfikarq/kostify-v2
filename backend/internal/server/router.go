@@ -113,10 +113,14 @@ func NewRouter(deps Deps) *gin.Engine {
 	admin.Use(requireAuth(deps), middleware.RequireRoles(models.RoleSuperAdmin))
 	{
 			admin.GET("/kosts", kostH.ListAdmin)
+		admin.PATCH("/kosts/:id", kostH.AdminUpdateKost)
+		admin.DELETE("/kosts/:id", kostH.AdminDeleteKost)
 		admin.PATCH("/kosts/:id/verify", kostH.VerifyKost)
 		admin.PATCH("/kosts/:id/reject", kostH.RejectKost)
 		admin.GET("/users", usersH.List)
+		admin.POST("/users", usersH.Create)
 		admin.PATCH("/users/:id", usersH.Update)
+		admin.DELETE("/users/:id", usersH.Delete)
 	}
 
 	// Upload (owner + admin only, CSRF already enforced)

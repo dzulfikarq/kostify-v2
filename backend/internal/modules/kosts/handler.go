@@ -250,6 +250,38 @@ func (h *Handler) RejectKost(c *gin.Context) {
 	response.OK(c, kost, "Kost rejected")
 }
 
+func (h *Handler) AdminUpdateKost(c *gin.Context) {
+	kostID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		response.Fail(c, response.NewError(http.StatusBadRequest, "BAD_REQUEST", "Invalid kost id"))
+		return
+	}
+	var in KostUpdateInput
+	if err := c.ShouldBindJSON(&in); err != nil {
+		response.Fail(c, response.ErrBadRequest("Invalid request body"))
+		return
+	}
+	kost, err := h.svc.AdminUpdateKost(c.Request.Context(), kostID, in)
+	if err != nil {
+		response.Fail(c, err)
+		return
+	}
+	response.OK(c, kost, "Kost updated by admin")
+}
+
+func (h *Handler) AdminDeleteKost(c *gin.Context) {
+	kostID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		response.Fail(c, response.NewError(http.StatusBadRequest, "BAD_REQUEST", "Invalid kost id"))
+		return
+	}
+	if err := h.svc.AdminDeleteKost(c.Request.Context(), kostID); err != nil {
+		response.Fail(c, err)
+		return
+	}
+	response.NoContent(c)
+}
+
 func paginated(items any, page, limit int, total int64) gin.H {
 	totalPages := int((total + int64(limit) - 1) / int64(limit))
 	if totalPages < 1 {

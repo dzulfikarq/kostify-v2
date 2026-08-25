@@ -327,3 +327,62 @@ func (s *Service) RejectKost(ctx context.Context, kostID uuid.UUID, note string)
 	}
 	return k, nil
 }
+
+func (s *Service) AdminUpdateKost(ctx context.Context, kostID uuid.UUID, in KostUpdateInput) (*models.Kost, error) {
+	k, err := s.repo.GetKostByID(ctx, kostID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, response.ErrNotFound
+		}
+		return nil, response.ErrInternal
+	}
+	if in.Name != nil {
+		v := strings.TrimSpace(*in.Name)
+		if l := len(v); l < 3 || l > 150 {
+			return nil, response.ErrValidation([]response.ErrorDetail{{Field: "name", Message: "must be 3-150 characters"}})
+		}
+		k.Name = v
+	}
+	if in.Description != nil {
+		if len(*in.Description) > 5000 {
+			return nil, response.ErrValidation([]response.ErrorDetail{{Field: "description", Message: "must be at most 5000 characters"}})
+		}
+		k.Description = *in.Description
+	}
+	if in.Address != nil {
+		k.Address = *in.Address
+	}
+	if in.City != nil {
+		v := strings.TrimSpace(*in.City)
+		if l := len(v); l < 2 || l > 100 {
+			return nil, response.ErrValidation([]response.ErrorDetail{{Field: "city", Message: "must be 2-100 characters"}})
+		}
+		k.City = v
+	}
+	if in.Gender != nil {
+		if !isValidGender(*in.Gender) {
+			return nil, response.ErrValidation([]response.ErrorDetail{{Field: "gender", Message: "must be putra, putri or campur"}})
+		}
+		k.Gender = models.KostGender(*in.Gender)
+	}
+	if in.Photos != nil {
+		k.Photos = pq.StringArray(*in.Photos)
+	}
+	if in.Facilities != nil {
+		k.Facilities = pq.StringArray(*in.Facilities)
+	}
+	if err := s.repo.UpdateKost(ctx, k); err != nil {
+		return nil, response.ErrInternal
+	}
+	return k, nil
+}
+
+func (s *Service) AdminDeleteKost(ctx context.Context, kostID uuid.UUID) error {
+	if _, err := s.repo.GetKostByID(ctx, kostID); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return response.ErrNotFound
+		}
+		return response.ErrInternal
+	}
+	return s.repo.DeleteKost(ctx, kostID)
+}

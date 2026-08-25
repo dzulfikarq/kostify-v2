@@ -32,17 +32,22 @@ export const dashboardApi = {
     api.get<{ data: Paginated<Contract> }>("/owner/contracts", { params }).then((r) => r.data.data),
   endContract: (id: string) => api.patch(`/owner/contracts/${id}/end`).then((r) => r.data),
 
-  // admin
+  // admin kosts CRUD
   listAdminKosts: (params?: Record<string, unknown>) =>
     api.get<{ data: Paginated<Kost> }>("/admin/kosts", { params }).then((r) => r.data.data),
   verifyKost: (id: string) => api.patch(`/admin/kosts/${id}/verify`).then((r) => r.data),
   rejectKost: (id: string, note: string) => api.patch(`/admin/kosts/${id}/reject`, { note }).then((r) => r.data),
+  updateAdminKost: (id: string, body: Partial<Kost>) => api.patch(`/admin/kosts/${id}`, body).then((r) => r.data),
+  deleteAdminKost: (id: string) => api.delete(`/admin/kosts/${id}`).then((r) => r.data),
 
-  // admin users
+  // admin users CRUD
   listUsers: (params?: Record<string, unknown>) =>
     api.get<{ data: Paginated<User> }>("/admin/users", { params }).then((r) => r.data.data),
+  createUser: (body: { name: string; email: string; password: string; role: string; phone?: string }) =>
+    api.post("/admin/users", body).then((r) => r.data),
   updateUser: (id: string, body: { is_active?: boolean; role?: string }) =>
     api.patch(`/admin/users/${id}`, body).then((r) => r.data),
+  deleteUser: (id: string) => api.delete(`/admin/users/${id}`).then((r) => r.data),
 
   // upload
   uploadImage: (file: File) => {

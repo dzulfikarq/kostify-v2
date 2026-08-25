@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 
 	"kostify/backend/internal/http/response"
@@ -32,6 +33,32 @@ type UpdateInput struct {
 func (in UpdateInput) Validate() []response.ErrorDetail {
 	var errs []response.ErrorDetail
 	if in.Role != nil && *in.Role != string(models.RoleOwner) && *in.Role != string(models.RoleTenant) && *in.Role != string(models.RoleSuperAdmin) {
+		errs = append(errs, response.ErrorDetail{Field: "role", Message: "must be owner, tenant or super_admin"})
+	}
+	return errs
+}
+
+type CreateInput struct {
+	Name     string `json:"name"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
+	Role     string `json:"role"`
+	Phone    string `json:"phone"`
+	IsActive *bool  `json:"is_active"`
+}
+
+func (in CreateInput) Validate() []response.ErrorDetail {
+	var errs []response.ErrorDetail
+	if l := len(strings.TrimSpace(in.Name)); l < 2 || l > 120 {
+		errs = append(errs, response.ErrorDetail{Field: "name", Message: "must be 2-120 characters"})
+	}
+	if !strings.Contains(in.Email, "@") || len(in.Email) < 5 {
+		errs = append(errs, response.ErrorDetail{Field: "email", Message: "must be a valid email"})
+	}
+	if len(in.Password) < 8 || len(in.Password) > 72 {
+		errs = append(errs, response.ErrorDetail{Field: "password", Message: "must be 8-72 characters"})
+	}
+	if in.Role != "" && in.Role != string(models.RoleOwner) && in.Role != string(models.RoleTenant) && in.Role != string(models.RoleSuperAdmin) {
 		errs = append(errs, response.ErrorDetail{Field: "role", Message: "must be owner, tenant or super_admin"})
 	}
 	return errs
@@ -73,6 +100,14 @@ func (r *Repository) Update(ctx context.Context, u *models.User) error {
 	return r.db.WithContext(ctx).Save(u).Error
 }
 
+func (r *Repository) Create(ctx context.Context, u *models.User) error {
+	return r.db.WithContext(ctx).Create(u).Error
+}
+
+func (r *Repository) Delete(ctx context.Context, id uuid.UUID) error {
+	return r.db.WithContext(ctx).Delete(&models.User{}, "id = ?", id).Error
+}
+
 type Service struct{ repo *Repository }
 
 func NewService(repo *Repository) *Service { return &Service{repo: repo} }
@@ -95,6 +130,43 @@ func (s *Service) Update(ctx context.Context, id uuid.UUID, in UpdateInput) (*mo
 		return nil, err
 	}
 	return u, nil
+}
+
+func (s *Service) Create(ctx context.Context, in CreateInput) (*models.User, error) {
+	hash, err := bcrypt.GenerateFromPassword([]byte(in.Password), 12)
+	if err != nil {
+		return nil, response.ErrInternal
+	}
+	role := models.RoleTenant
+	if in.Role != "" {
+		role = models.UserRole(in.Role)
+	}
+	isActive := true
+	if in.IsActive != nil {
+		isActive = *in.IsActive
+	}
+	u := &models.User{
+		Name:         strings.TrimSpace(in.Name),
+		Email:        strings.ToLower(strings.TrimSpace(in.Email)),
+		Phone:        strings.TrimSpace(in.Phone),
+		PasswordHash: string(hash),
+		Role:         role,
+		IsActive:     isActive,
+	}
+	if err := s.repo.Create(ctx, u); err != nil {
+		if errors.Is(err, gorm.ErrDuplicatedKey) || strings.Contains(err.Error(), "duplicate key") {
+			return nil, response.ErrConflict("Email already registered")
+		}
+		return nil, response.ErrInternal
+	}
+	return u, nil
+}
+
+func (s *Service) Delete(ctx context.Context, id uuid.UUID) error {
+	if _, err := s.repo.GetByID(ctx, id); err != nil {
+		return err
+	}
+	return s.repo.Delete(ctx, id)
 }
 
 type Handler struct{ svc *Service }
@@ -148,4 +220,39 @@ func (h *Handler) Update(c *gin.Context) {
 		return
 	}
 	response.OK(c, u, "User updated")
+}
+
+func (h *Handler) Create(c *gin.Context) {
+	var in CreateInput
+	if err := c.ShouldBindJSON(&in); err != nil {
+		response.Fail(c, response.ErrBadRequest("Invalid request body"))
+		return
+	}
+	if errs := in.Validate(); len(errs) > 0 {
+		response.Fail(c, response.ErrValidation(errs))
+		return
+	}
+	u, err := h.svc.Create(c.Request.Context(), in)
+	if err != nil {
+		response.Fail(c, err)
+		return
+	}
+	response.Created(c, u, "User created")
+}
+
+func (h *Handler) Delete(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		response.Fail(c, response.NewError(http.StatusBadRequest, "BAD_REQUEST", "Invalid user id"))
+		return
+	}
+	if err := h.svc.Delete(c.Request.Context(), id); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			response.Fail(c, response.ErrNotFound)
+			return
+		}
+		response.Fail(c, response.ErrInternal)
+		return
+	}
+	response.NoContent(c)
 }
