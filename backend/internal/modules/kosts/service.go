@@ -82,12 +82,12 @@ func (s *Service) GetPublicKost(ctx context.Context, id uuid.UUID, viewer *model
 		return nil, nil, response.ErrInternal
 	}
 	if k.Status != models.KostVerified {
-		// ponytail: pending/rejected kosts visible only to their owner & admin
-		if viewer == nil || (viewer.Role != models.RoleSuperAdmin && viewer.ID != k.OwnerID) {
+		// ponytail: pending/rejected kosts visible to owner, admin & assigned teknisi role
+		if viewer == nil || (viewer.Role != models.RoleSuperAdmin && viewer.Role != models.RoleTeknisi && viewer.ID != k.OwnerID) {
 			return nil, nil, response.ErrNotFound
 		}
 	} else if !k.IsActive {
-		if viewer == nil || (viewer.Role != models.RoleSuperAdmin && viewer.ID != k.OwnerID) {
+		if viewer == nil || (viewer.Role != models.RoleSuperAdmin && viewer.Role != models.RoleTeknisi && viewer.ID != k.OwnerID) {
 			return nil, nil, response.ErrNotFound
 		}
 	}

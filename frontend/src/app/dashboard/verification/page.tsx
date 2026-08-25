@@ -10,8 +10,7 @@ import { Card, Skeleton } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty";
 import { TableRoot, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/tailgrids/core/table";
-import { Input } from "@/components/ui/input";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { Badge } from "@/components/ui/badge";
 import { formatDateTime } from "@/utils/date";
 import { useLang } from '@/i18n';
 import { toast } from 'sonner';
@@ -20,9 +19,6 @@ export default function VerificationPage() {
   const { t } = useLang();
   const { data: user } = useMe();
   const qc = useQueryClient();
-  const [rejectTarget, setRejectTarget] = useState<null | { id: string; name: string }>(null);
-  const [rejectNote, setRejectNote] = useState("");
-  const [confirm, setConfirm] = useState<null | { title: string; desc: string; action: () => void; tone?: "violet" | "red" }>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin-kosts", "pending"],
@@ -35,28 +31,25 @@ export default function VerificationPage() {
     qc.invalidateQueries({ queryKey: ["master-kosts"] });
   };
 
-  const verifyMut = useMutation({
-    mutationFn: (id: string) => dashboardApi.verifyKost(id),
-    onSuccess: () => { toast.success("Kost diverifikasi — kini tayang di pencarian"); invalidate(); },
-    onError: (e: any) => toast.error(e.response?.data?.error?.message || "Gagal verifikasi"),
-  });
-  const rejectMut = useMutation({
-    mutationFn: ({ id, note }: { id: string; note: string }) => dashboardApi.rejectKost(id, note),
-    onSuccess: () => { toast.success("Kost ditolak"); setRejectTarget(null); setRejectNote(""); invalidate(); },
-    onError: (e: any) => toast.error(e.response?.data?.error?.message || "Gagal menolak"),
-  });
-
   const teknisiQ = useQuery({
     queryKey: ["teknisi-list"],
     queryFn: () => surveyApi.listTeknisi(),
     enabled: user?.role === "super_admin",
   });
+
+  const assignmentsQ = useQuery({
+    queryKey: ["admin-assignments"],
+    queryFn: () => surveyApi.listAssignmentsAdmin(),
+    enabled: user?.role === "super_admin",
+  });
+  const assignedKostIds = new Set((assignmentsQ.data || []).filter((a) => !a.decided_at).map((a) => a.kost_id));
+
   const [assignTarget, setAssignTarget] = useState<null | { id: string; name: string }>(null);
   const [assignTeknisi, setAssignTeknisi] = useState("");
   const [assignDate, setAssignDate] = useState("");
   const assignMut = useMutation({
     mutationFn: () => surveyApi.assign(assignTarget!.id, assignTeknisi, assignDate ? new Date(assignDate).toISOString() : undefined),
-    onSuccess: () => { toast.success("Teknisi ditugaskan untuk survey"); setAssignTarget(null); invalidate(); },
+    onSuccess: () => { toast.success("Teknisi ditugaskan untuk survey"); setAssignTarget(null); invalidate(); qc.invalidateQueries({ queryKey: ["admin-assignments"] }); },
     onError: (e: any) => toast.error(e.response?.data?.error?.message || "Gagal assign teknisi"),
   });
 
@@ -114,11 +107,10 @@ export default function VerificationPage() {
                       >
                         Chat Pemilik
                       </button>
-                      <Button size="sm" onClick={() => setConfirm({ title: t("vf.cd_setuju", { name: k.name }), desc: t("vf.cd_setuju_desc"), tone: "violet", action: () => { verifyMut.mutate(k.id); setConfirm(null); } })} className="shadow-sm">{t("vf.setujui")}</Button>
-                      <Button variant="outline" size="sm" className="text-red-600 hover:bg-red-50" onClick={() => { setRejectTarget({ id: k.id, name: k.name }); setRejectNote(""); }}>{t("vf.tolak")}</Button>
                       <Button size="sm" className="bg-zinc-900 hover:bg-black" onClick={() => { setAssignTarget({ id: k.id, name: k.name }); setAssignTeknisi(""); setAssignDate(""); }}>
                         Survey Teknisi
                       </Button>
+                      {assignedKostIds.has(k.id) && <Badge tone="green">Sudah diassign</Badge>}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -169,34 +161,6 @@ export default function VerificationPage() {
           </Card>
         </div>
       )}
-
-      {/* Dialog alasan penolakan */}
-      {rejectTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-          <Card className="w-full max-w-sm space-y-3 border-0 shadow-xl">
-            <h3 className="font-semibold">{t("vf.cd_tolak", { name: rejectTarget.name })}</h3>
-            <Input
-              label={t("vf.alasan_ph")}
-              value={rejectNote}
-              onChange={(e) => setRejectNote(e.target.value)}
-              placeholder={t("vf.alasan_ph")}
-              autoFocus
-            />
-            <div className="flex gap-2 pt-1">
-              <Button variant="outline" className="flex-1" onClick={() => setRejectTarget(null)}>{t("c.batal")}</Button>
-              <Button
-                className="flex-1 bg-red-600 hover:bg-red-700"
-                disabled={!rejectNote.trim() || rejectMut.isPending}
-                onClick={() => rejectMut.mutate({ id: rejectTarget.id, note: rejectNote.trim() })}
-              >
-                {t("vf.tolak")}
-              </Button>
-            </div>
-          </Card>
-        </div>
-      )}
-
-      <ConfirmDialog open={!!confirm} title={confirm?.title || ""} description={confirm?.desc} tone={confirm?.tone} confirmText={t("c.konfirmasi")} onConfirm={() => confirm?.action()} onCancel={() => setConfirm(null)} />
     </div>
   );
 }

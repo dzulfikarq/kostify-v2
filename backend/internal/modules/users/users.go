@@ -27,8 +27,9 @@ type ListQuery struct {
 func (q ListQuery) Validate() []response.ErrorDetail { return nil }
 
 type UpdateInput struct {
-	IsActive *bool   `json:"is_active"`
-	Role     *string `json:"role"`
+	IsActive      *bool   `json:"is_active"`
+	Role          *string `json:"role"`
+	EmailVerified *bool   `json:"email_verified"`
 }
 
 type UpdateProfileInput struct {
