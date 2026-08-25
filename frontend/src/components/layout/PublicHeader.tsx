@@ -13,7 +13,7 @@ export function PublicHeader() {
     <header className="sticky top-0 z-40 border-b border-zinc-200 bg-white/80 backdrop-blur">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
         <Link href="/" className="flex items-center gap-2">
-          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-zinc-900 text-white">⌖</span>
+          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#8550e6] text-white">⌖</span>
           <span className="text-lg font-bold tracking-tight">Kostify</span>
           <Badge tone="zinc" className="ml-1 hidden sm:inline-flex">Verified</Badge>
         </Link>

@@ -2,13 +2,15 @@ import Providers from "@/app/providers";
 import { cn } from "@/utils/cn";
 import type { Metadata } from "next";
 import { ThemeProvider } from "next-themes";
-import { Inter } from "next/font/google";
+import { Rubik } from "next/font/google";
 import { Toaster } from "sonner";
 import "./globals.css";
 
-const geistInter = Inter({
-  variable: "--font-inter",
+const rubik = Rubik({
   subsets: ["latin"],
+  variable: "--font-rubik",
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -25,8 +27,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html suppressHydrationWarning lang="en" className={cn("antialiased", geistInter.className)}>
-      <body className="min-h-screen bg-[#f8f9fb]">
+    <html suppressHydrationWarning lang="en" className={cn("antialiased", rubik.variable, rubik.className)}>
+      <body className="min-h-screen bg-[#f8f9fb] font-[var(--font-rubik)]">
         <ThemeProvider defaultTheme="light" enableSystem>
           <Providers>{children}</Providers>
         </ThemeProvider>

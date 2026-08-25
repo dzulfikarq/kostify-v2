@@ -15,7 +15,7 @@ export function Button({
   const base =
     "inline-flex items-center justify-center rounded-xl font-medium transition disabled:opacity-50 disabled:cursor-not-allowed";
   const variants: Record<Variant, string> = {
-    primary: "bg-[#111827] text-white hover:bg-black",
+    primary: "bg-[#8550e6] text-white hover:bg-[#7348d0]",
     outline: "border border-zinc-200 bg-white hover:bg-zinc-50",
     ghost: "hover:bg-zinc-100",
   };

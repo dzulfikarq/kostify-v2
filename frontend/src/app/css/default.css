@@ -1,18 +1,18 @@
 :root {
-  --primary-50: var(--primary-50);
-  --primary-100: #dae2ff;
-  --primary-200: #becdff;
-  --primary-300: #91aeff;
-  --primary-400: #5e84fc;
-  --primary-500: #3758f9;
-  --primary-600: #2237ee;
-  --primary-700: #1a25db;
-  --primary-800: #1c20b1;
-  --primary-900: #1c228c;
-  --primary-950: #161755;
+  --primary-50: #f5f0ff;
+  --primary-100: #ede5fe;
+  --primary-200: #ddd6fe;
+  --primary-300: #c4b5fd;
+  --primary-400: #a78bfa;
+  --primary-500: #8550e6;
+  --primary-600: #7348d0;
+  --primary-700: #5e35b1;
+  --primary-800: #4f2a8f;
+  --primary-900: #43247a;
+  --primary-950: #2e165a;
 
   --primary-text: white;
-  --neutral-brand-color: #465fff;
+  --neutral-brand-color: #8550e6;
 
   /* Text Color */
   --text-50: #374151;
@@ -72,11 +72,11 @@
 
   /* ======== Button Color =========*/
 
-  /* Primary */
-  --button-primary-background: #5750f1;
-  --button-primary-hover-background: #3c35d8;
+  /* Primary — base #8550e6 */
+  --button-primary-background: #8550e6;
+  --button-primary-hover-background: #7348d0;
   --button-primary-text: #ffffff;
-  --button-primary-focus-ring: rgba(87, 80, 241, 0.2);
+  --button-primary-focus-ring: rgba(133, 80, 230, 0.25);
 
   /* Outline */
   --button-outline-background: #ffffff;
@@ -133,8 +133,8 @@
 
   /* Button Group Primary */
   --button-group-primary-background: #ffffff;
-  --button-group-primary-hover-background: #5750f1;
-  --button-group-primary-text: #5750f1;
+  --button-group-primary-hover-background: #8550e6;
+  --button-group-primary-text: #8550e6;
   --button-group-primary-hover-text: #ffffff;
 
   /* Button Group Secondary */
@@ -148,10 +148,10 @@
   --badge-neutral-text: #374151;
   --badge-neutral-icon-color: #6b7280;
 
-  /* Badge Primary */
-  --badge-primary-background: #eff3ff;
-  --badge-primary-text: #3758f9;
-  --badge-primary-icon-color: #3758f9;
+  /* Badge Primary — violet */
+  --badge-primary-background: #f5f0ff;
+  --badge-primary-text: #5e35b1;
+  --badge-primary-icon-color: #8550e6;
 
   /* Badge Error */
   --badge-error-background: #fef2f2;
@@ -216,19 +216,19 @@
 
   /* ======== Sidebar =========*/
 
-  /* Nav Item */
+  /* Nav Item — violet active */
   --sidebar-nav-default-background: #ffffff;
   --sidebar-nav-hover-background: #f9fafb;
   --sidebar-nav-secondary-hover-background: #f3f4f6;
   --sidebar-nav-hover-text: #374151;
-  --sidebar-nav-active-text: #3758f9;
-  --sidebar-nav-active-background: #eff3ff;
-  --sidebar-nav-focused-background: #eff3ff;
+  --sidebar-nav-active-text: #8550e6;
+  --sidebar-nav-active-background: #f5f0ff;
+  --sidebar-nav-focused-background: #f5f0ff;
   --sidebar-nav-default-text: #374151;
   --sidebar-nav-icon: #6b7280;
 
   /* Sidebar Badge */
-  --sidebar-badge-background: #3758f9;
+  --sidebar-badge-background: #8550e6;
   --sidebar-badge-text: #ffffff;
 
   /* Sidebar Footer */
@@ -305,7 +305,7 @@
   --input-disabled-background: #fafafa;
   --input-disabled-border: #e4e4e7;
   --input-placeholder-text: #9ca3af;
-  --input-primary-focus-border: #5750f1;
+  --input-primary-focus-border: #8550e6;
   --input-error-focus-border: #ef4444;
   --input-success-focus-border: #22c55e;
   --input-error: #ef4444;
@@ -314,12 +314,12 @@
   /* ======== Tab Color =========*/
   --tab-background: #f4f4f5;
   --tab-active-background: #ffffff;
-  --tab-secondary-active-background: #eff3ff;
+  --tab-secondary-active-background: #f5f0ff;
 
   /* ======== Checkbox Color =========*/
   --checkbox-background: #ffffff;
-  --checkbox-checked-border: #5750f1;
-  --checkbox-checked-background: #5750f1;
+  --checkbox-checked-border: #8550e6;
+  --checkbox-checked-background: #8550e6;
   --checkbox-checked-icon-color: #ffffff;
 
   /* ======== Scrollbar Color =========*/
@@ -327,7 +327,7 @@
 
   /* ======== Datepicker Color =========*/
   --datepicker-background: #ffffff;
-  --datepicker-selected-background: #3758f9;
+  --datepicker-selected-background: #8550e6;
   --datepicker-selected-hover-background: #f9fafb;
 
   /* ======== Dropdowns Color =========*/
@@ -337,8 +337,8 @@
   --dropdown-divider: #f3f4f6;
 
   /* ======== Calendar Color =========*/
-  --calendar-primary-badge: #3758f9;
-  --calendar-primary-background: #eff3ff;
+  --calendar-primary-badge: #8550e6;
+  --calendar-primary-background: #f5f0ff;
   --calendar-success-badge: #22c55e;
   --calendar-success-background: #f0fdf4;
   --calendar-warning-badge: #f97316;
@@ -355,13 +355,13 @@
   --pricing-active-switcher-background: #ffffff;
   --pricing-active-card-background: #1f2937;
   --pricing-button-background: #1f2937;
-  --pricing-icon-color: #3758f9;
-  --pricing-icon-background: #eff3ff;
+  --pricing-icon-color: #8550e6;
+  --pricing-icon-background: #f5f0ff;
 
   /* ======== FAQ's Color =========*/
   --faq-primary-active-background: #f9fafb;
-  --faq-secondary-active-background: #eff3ff;
-  --faq-secondary-active-border: #dae2ff;
+  --faq-secondary-active-background: #f5f0ff;
+  --faq-secondary-active-border: #ddd6fe;
   --faq-secondary-active-title: #1f2937;
   --faq-secondary-active-text: #374151;
 
@@ -398,8 +398,8 @@
   --modal-button-error-background: #dc2626;
 
   /* ======== Section Title Color =========*/
-  --section-title-badge: #3758f9;
-  --section-title-badge-background: #3758f90d;
+  --section-title-badge: #8550e6;
+  --section-title-badge-background: #8550e60d;
 
   /* ======== Mobile Nav Menu Button Color =========*/
   --mobile-nav-icon: #374151;
@@ -431,7 +431,7 @@
   --toggle-default-background: #e4e4e7;
   --toggle-disabled-foreground: #ffffff;
   --toggle-disabled-background: #f3f4f6;
-  --toggle-active-background: #5750f1;
+  --toggle-active-background: #8550e6;
 
   /* ======== Map Color =========*/
   --map-fill: #d1d5db;
@@ -488,13 +488,13 @@
   --badge-gray-icon: #71717a;
   --background-gray-quaternary: #d4d4d8;
 
-  /* general color */
-  --brand-100: #e0e7ff;
-  --brand-200: #c7d2fe;
-  --brand-300: #a5b4fc;
-  --brand-400: #818cf8;
-  --brand-500: #5750f1;
-  --brand-600: #3c35d8;
+  /* general color — violet #8550e6 */
+  --brand-100: #ede5fe;
+  --brand-200: #ddd6fe;
+  --brand-300: #c4b5fd;
+  --brand-400: #a78bfa;
+  --brand-500: #8550e6;
+  --brand-600: #7348d0;
   --base-white: #ffffff;
   --green-600: #16a34a;
   --red-600: #dc2626;

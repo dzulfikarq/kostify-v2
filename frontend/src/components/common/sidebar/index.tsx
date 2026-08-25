@@ -49,7 +49,7 @@ export default function Sidebar({
                     {isSidebarOpen ? (
                         <span className="text-lg font-bold tracking-tight text-text-primary">Kostify</span>
                     ) : (
-                        <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-zinc-900 text-sm font-bold text-white">K</span>
+                        <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#8550e6] text-sm font-bold text-white">K</span>
                     )}
                 </Link>
 
