@@ -55,7 +55,7 @@ export default function VerificationPage() {
   const [assignTeknisi, setAssignTeknisi] = useState("");
   const [assignDate, setAssignDate] = useState("");
   const assignMut = useMutation({
-    mutationFn: () => surveyApi.assign(assignTarget!.id, assignTeknisi, assignDate ? new Date(assignDate + "T09:00:00").toISOString() : undefined),
+    mutationFn: () => surveyApi.assign(assignTarget!.id, assignTeknisi, assignDate ? new Date(assignDate).toISOString() : undefined),
     onSuccess: () => { toast.success("Teknisi ditugaskan untuk survey"); setAssignTarget(null); invalidate(); },
     onError: (e: any) => toast.error(e.response?.data?.error?.message || "Gagal assign teknisi"),
   });
