@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -34,7 +35,13 @@ func (h *Handler) Create(c *gin.Context) {
 		return
 	}
 	tenantID := middleware.CurrentUser(c).ID
-	booking, err := h.svc.Create(c.Request.Context(), tenantID, roomID)
+	var surveyDate *time.Time
+	if in.SurveyDate != "" {
+		if sd, err := time.ParseInLocation("2006-01-02", in.SurveyDate, time.Local); err == nil {
+			surveyDate = &sd
+		}
+	}
+	booking, err := h.svc.Create(c.Request.Context(), tenantID, roomID, surveyDate)
 	if err != nil {
 		response.Fail(c, err)
 		return

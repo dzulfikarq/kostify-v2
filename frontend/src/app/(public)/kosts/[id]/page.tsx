@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
 import { kostsApi } from "@/services/api/kosts";
 import { bookingsApi } from "@/services/api/bookings";
+import { chatApi } from "@/services/api/extras";
 import { useMe } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/card";
@@ -15,6 +16,7 @@ import {
   MapMarker5,
   Buildings11,
   User2,
+  Comment1Dots,
 } from "@tailgrids/icons";
 import { useLang } from "@/i18n";
 
@@ -31,6 +33,9 @@ export default function KostDetailPage() {
     room_number: string;
     price: number;
   }>(null);
+  const [surveyDate, setSurveyDate] = useState("");
+  const maxSurvey = new Date(Date.now() + 5 * 86400000).toISOString().slice(0, 10);
+  const today = new Date().toISOString().slice(0, 10);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["kost", id],
@@ -39,7 +44,8 @@ export default function KostDetailPage() {
   });
 
   const bookMut = useMutation({
-    mutationFn: (room_id: string) => bookingsApi.create(room_id),
+    mutationFn: (p: { room_id: string; survey_date: string }) =>
+      bookingsApi.create(p.room_id, p.survey_date),
     onSuccess: () => {
       toast.success("Booking berhasil — ter-reserve 3 hari, menunggu konfirmasi pemilik");
       qc.invalidateQueries({ queryKey: ["kost", id] });
@@ -197,12 +203,34 @@ export default function KostDetailPage() {
               >
                 <User2 size={20} />
               </div>
-              <div>
+              <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 12, color: "var(--color-muted)" }}>{t("kd.pemilik")}</div>
                 <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text)" }}>
                   {kost.owner?.name || "-"}
                 </div>
               </div>
+              {kost.owner_id !== user?.id && (
+                <Button
+                  className="btn-primary"
+                  style={{ padding: "8px 14px", fontSize: 13, whiteSpace: "nowrap" }}
+                  onClick={async () => {
+                    if (!user) {
+                      toast.error("Login dulu untuk chat");
+                      router.push(`/login?next=/kosts/${kost.id}`);
+                      return;
+                    }
+                    try {
+                      const conv = await chatApi.start(kost.owner_id);
+                      router.push(`/chat?c=${conv.id}`);
+                    } catch {
+                      toast.error("Gagal memulai chat");
+                    }
+                  }}
+                >
+                  <Comment1Dots size={14} style={{ marginRight: 6, verticalAlign: "-2px" }} />
+                  Chat Pemilik
+                </Button>
+              )}
             </div>
 
             {kost.description ? (
@@ -357,6 +385,7 @@ export default function KostDetailPage() {
                             return;
                           }
                           setBookRoom({ id: rm.id, room_number: rm.room_number, price: Number(rm.price_monthly) });
+                          setSurveyDate("");
                         }}
                       >
                         {statusLabel}
@@ -378,11 +407,30 @@ export default function KostDetailPage() {
           tone="violet"
           confirmText={t("kd.booking_sekarang")}
           onConfirm={() => {
-            bookMut.mutate(bookRoom.id);
+            if (!surveyDate) {
+              toast.error("Pilih tanggal survey dulu ya");
+              return;
+            }
+            bookMut.mutate({ room_id: bookRoom.id, survey_date: surveyDate });
             setBookRoom(null);
           }}
           onCancel={() => setBookRoom(null)}
-        />
+        >
+          <div style={{ marginTop: 8 }}>
+            <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 6, color: "var(--color-text)" }}>
+              Tanggal Survey & Bertemu Pemilik * (maks. 5 hari dari hari ini)
+            </label>
+            <input
+              type="date"
+              className="search-input"
+              style={{ padding: "10px 12px" }}
+              min={today}
+              max={maxSurvey}
+              value={surveyDate}
+              onChange={(e) => setSurveyDate(e.target.value)}
+            />
+          </div>
+        </ConfirmDialog>
       )}
     </div>
   );

@@ -3,7 +3,9 @@ export interface User {
   name: string;
   email: string;
   phone: string;
-  role: "super_admin" | "owner" | "tenant";
+  role: "super_admin" | "owner" | "tenant" | "teknisi";
+  gender?: string;
+  email_verified?: boolean;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -54,6 +56,7 @@ export interface Booking {
   tenant?: User;
   status: "pending" | "approved" | "rejected" | "expired" | "cancelled";
   reject_reason?: string | null;
+  survey_date?: string | null;
   expires_at: string;
   decided_by?: string | null;
   decided_at?: string | null;
@@ -84,6 +87,61 @@ export interface Notification {
   body: string;
   link: string;
   is_read: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface KostAssignment {
+  id: string;
+  kost_id: string;
+  kost?: Kost;
+  teknisi_id: string;
+  teknisi?: User;
+  status: "assigned" | "surveying" | "approved" | "rejected";
+  decision?: "approved" | "rejected" | null;
+  note?: string | null;
+  assigned_by?: string | null;
+  decided_at?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  conversation_id: string;
+  sender_id: string;
+  sender?: User;
+  body: string;
+  read_at?: string | null;
+  created_at: string;
+}
+
+export interface Conversation {
+  id: string;
+  participant_a: string;
+  participant_b: string;
+  last_message?: string | null;
+  last_message_at?: string | null;
+  other_id: string;
+  other_name: string;
+  other_role: string;
+  unread_count: number;
+  updated_at: string;
+}
+
+export interface KostEvent {
+  id: string;
+  title: string;
+  event_type: string;
+  kost_id?: string | null;
+  kost?: Kost;
+  owner_id?: string | null;
+  owner?: User;
+  teknisi_id?: string | null;
+  teknisi?: User;
+  booking_id?: string | null;
+  scheduled_at: string;
+  notes: string;
   created_at: string;
 }
 

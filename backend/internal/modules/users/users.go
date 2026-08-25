@@ -32,8 +32,9 @@ type UpdateInput struct {
 }
 
 type UpdateProfileInput struct {
-	Name  *string `json:"name"`
-	Phone *string `json:"phone"`
+	Name   *string `json:"name"`
+	Phone  *string `json:"phone"`
+	Gender *string `json:"gender"`
 }
 
 func (in UpdateProfileInput) Validate() []response.ErrorDetail {
@@ -46,13 +47,16 @@ func (in UpdateProfileInput) Validate() []response.ErrorDetail {
 	if in.Phone != nil && len(strings.TrimSpace(*in.Phone)) > 20 {
 		errs = append(errs, response.ErrorDetail{Field: "phone", Message: "must be at most 20 characters"})
 	}
+	if in.Gender != nil && *in.Gender != "" && *in.Gender != "laki-laki" && *in.Gender != "perempuan" {
+		errs = append(errs, response.ErrorDetail{Field: "gender", Message: "must be laki-laki or perempuan"})
+	}
 	return errs
 }
 
 func (in UpdateInput) Validate() []response.ErrorDetail {
 	var errs []response.ErrorDetail
-	if in.Role != nil && *in.Role != string(models.RoleOwner) && *in.Role != string(models.RoleTenant) && *in.Role != string(models.RoleSuperAdmin) {
-		errs = append(errs, response.ErrorDetail{Field: "role", Message: "must be owner, tenant or super_admin"})
+	if in.Role != nil && *in.Role != string(models.RoleOwner) && *in.Role != string(models.RoleTenant) && *in.Role != string(models.RoleSuperAdmin) && *in.Role != string(models.RoleTeknisi) {
+		errs = append(errs, response.ErrorDetail{Field: "role", Message: "must be owner, tenant, super_admin or teknisi"})
 	}
 	return errs
 }
@@ -63,6 +67,7 @@ type CreateInput struct {
 	Password string `json:"password"`
 	Role     string `json:"role"`
 	Phone    string `json:"phone"`
+	Gender   string `json:"gender"`
 	IsActive *bool  `json:"is_active"`
 }
 
@@ -77,8 +82,11 @@ func (in CreateInput) Validate() []response.ErrorDetail {
 	if len(in.Password) < 8 || len(in.Password) > 72 {
 		errs = append(errs, response.ErrorDetail{Field: "password", Message: "must be 8-72 characters"})
 	}
-	if in.Role != "" && in.Role != string(models.RoleOwner) && in.Role != string(models.RoleTenant) && in.Role != string(models.RoleSuperAdmin) {
-		errs = append(errs, response.ErrorDetail{Field: "role", Message: "must be owner, tenant or super_admin"})
+	if in.Role != "" && in.Role != string(models.RoleOwner) && in.Role != string(models.RoleTenant) && in.Role != string(models.RoleSuperAdmin) && in.Role != string(models.RoleTeknisi) {
+		errs = append(errs, response.ErrorDetail{Field: "role", Message: "must be owner, tenant, super_admin or teknisi"})
+	}
+	if in.Gender != "" && in.Gender != "laki-laki" && in.Gender != "perempuan" {
+		errs = append(errs, response.ErrorDetail{Field: "gender", Message: "must be laki-laki or perempuan"})
 	}
 	return errs
 }
@@ -162,6 +170,9 @@ func (s *Service) UpdateProfile(ctx context.Context, id uuid.UUID, in UpdateProf
 	if in.Phone != nil {
 		u.Phone = strings.TrimSpace(*in.Phone)
 	}
+	if in.Gender != nil {
+		u.Gender = *in.Gender
+	}
 	if err := s.repo.Update(ctx, u); err != nil {
 		return nil, err
 	}
@@ -182,12 +193,14 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (*models.User, err
 		isActive = *in.IsActive
 	}
 	u := &models.User{
-		Name:         strings.TrimSpace(in.Name),
-		Email:        strings.ToLower(strings.TrimSpace(in.Email)),
-		Phone:        strings.TrimSpace(in.Phone),
-		PasswordHash: string(hash),
-		Role:         role,
-		IsActive:     isActive,
+		Name:          strings.TrimSpace(in.Name),
+		Email:         strings.ToLower(strings.TrimSpace(in.Email)),
+		Phone:         strings.TrimSpace(in.Phone),
+		PasswordHash:  string(hash),
+		Role:          role,
+		Gender:        in.Gender,
+		EmailVerified: true, // dibuat admin → langsung aktif tanpa verifikasi email
+		IsActive:      isActive,
 	}
 	if err := s.repo.Create(ctx, u); err != nil {
 		if errors.Is(err, gorm.ErrDuplicatedKey) || strings.Contains(err.Error(), "duplicate key") {

@@ -14,6 +14,7 @@ type RegisterInput struct {
 	Phone    string `json:"phone"`
 	Password string `json:"password"`
 	Role     string `json:"role"`
+	Gender   string `json:"gender"`
 }
 
 type LoginInput struct {
@@ -46,6 +47,11 @@ func (in *RegisterInput) Validate() []response.ErrorDetail {
 	case "tenant", "owner":
 	default:
 		errs = append(errs, response.ErrorDetail{Field: "role", Message: "must be one of: tenant, owner"})
+	}
+	switch in.Gender {
+	case "", "laki-laki", "perempuan":
+	default:
+		errs = append(errs, response.ErrorDetail{Field: "gender", Message: "must be one of: laki-laki, perempuan"})
 	}
 	return errs
 }

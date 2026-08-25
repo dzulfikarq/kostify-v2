@@ -1,4 +1,4 @@
-import { HomeIcon, TableIcon, UserIcon, WindowIcon, AlphabetIcon, PieChartIcon } from "./icon";
+import { HomeIcon, TableIcon, UserIcon, WindowIcon, AlphabetIcon, PieChartIcon, CalendarIcon } from "./icon";
 
 export function getNavData(t: (key: string) => string) {
   return [
@@ -9,6 +9,8 @@ export function getNavData(t: (key: string) => string) {
         { title: t("nav.kostsaya"), icon: <TableIcon />, url: "/dashboard/kosts", items: [] as unknown as { title: string; url: string }[], roles: ["owner"] as const },
         { title: t("nav.bookings"), icon: <WindowIcon />, url: "/dashboard/bookings", items: [] as unknown as { title: string; url: string }[], roles: ["owner"] as const },
         { title: t("nav.kontrak"), icon: <AlphabetIcon />, url: "/dashboard/contracts", items: [] as unknown as { title: string; url: string }[], roles: ["owner"] as const },
+        { title: "Tugas Survey", icon: <PieChartIcon />, url: "/dashboard/teknisi", items: [] as unknown as { title: string; url: string }[], roles: ["teknisi"] as const },
+        { title: "Jadwal Survey", icon: <CalendarIcon />, url: "/dashboard/events", items: [] as unknown as { title: string; url: string }[], roles: ["owner", "teknisi", "super_admin"] as const },
       ],
     },
     {

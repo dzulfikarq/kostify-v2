@@ -14,8 +14,10 @@ import (
 	"kostify/backend/internal/models"
 	"kostify/backend/internal/modules/auth"
 	"kostify/backend/internal/modules/bookings"
+	"kostify/backend/internal/modules/chat"
 	"kostify/backend/internal/modules/kosts"
 	"kostify/backend/internal/modules/notifications"
+	"kostify/backend/internal/modules/survey"
 	"kostify/backend/internal/modules/uploads"
 	"kostify/backend/internal/modules/users"
 	mclient "kostify/backend/internal/platform/minio"
@@ -64,6 +66,14 @@ func NewRouter(deps Deps) *gin.Engine {
 
 	notifH := notifications.NewHandler(deps.DB)
 
+	surveyRepo := survey.NewRepository(deps.DB)
+	surveySvc := survey.NewService(surveyRepo).WithNotifier(notifications.NewNotifier(deps.DB))
+	surveyH := survey.NewHandler(surveySvc)
+
+	chatRepo := chat.NewRepository(deps.DB)
+	chatSvc := chat.NewService(chatRepo)
+	chatH := chat.NewHandler(chatSvc)
+
 	authSecret := func() string {
 		if deps.Cfg.JWTAccessSecret != "" {
 			return deps.Cfg.JWTAccessSecret
@@ -78,6 +88,8 @@ func NewRouter(deps Deps) *gin.Engine {
 	v1.POST("/auth/register", middleware.RateLimit(deps.RDB, "rl:auth:register", 10, time.Minute), authH.Register)
 	v1.POST("/auth/login", middleware.RateLimit(deps.RDB, "rl:auth:login", 10, time.Minute), authH.Login)
 	v1.POST("/auth/refresh", authH.Refresh)
+	v1.GET("/auth/verify-email", authH.VerifyEmail)
+	v1.POST("/auth/resend-verification", middleware.RateLimit(deps.RDB, "rl:auth:verify", 5, time.Minute), authH.ResendVerification)
 
 	// CSRF for remaining state-changing routes
 	v1.Use(func(c *gin.Context) {
@@ -95,6 +107,16 @@ func NewRouter(deps Deps) *gin.Engine {
 	v1.PATCH("/users/me", requireAuth(deps), usersH.UpdateMe)
 	v1.GET("/notifications", requireAuth(deps), notifH.List)
 	v1.PATCH("/notifications/:id/read", requireAuth(deps), notifH.MarkRead)
+
+	// Chat (semua role)
+	v1.POST("/chat/start", requireAuth(deps), chatH.Start)
+	v1.GET("/chat/conversations", requireAuth(deps), chatH.List)
+	v1.GET("/chat/unread", requireAuth(deps), chatH.Unread)
+	v1.GET("/chat/conversations/:id/messages", requireAuth(deps), chatH.Messages)
+	v1.POST("/chat/conversations/:id/messages", requireAuth(deps), chatH.Send)
+
+	// Events (semua role, readonly untuk non-admin)
+	v1.GET("/events", requireAuth(deps), surveyH.ListEvents)
 
 	// Tenant bookings & contracts
 	v1.POST("/bookings", requireAuth(deps), middleware.RequireRoles(models.RoleTenant), bookingH.Create)
@@ -123,6 +145,14 @@ func NewRouter(deps Deps) *gin.Engine {
 		owner.GET("/stats", bookingH.Stats)
 	}
 
+	// Teknisi (survey kost)
+	teknisi := v1.Group("/teknisi")
+	teknisi.Use(requireAuth(deps), middleware.RequireRoles(models.RoleTeknisi))
+	{
+		teknisi.GET("/assignments", surveyH.ListAssignments)
+		teknisi.PATCH("/assignments/:id/decide", surveyH.Decide)
+	}
+
 	// Admin
 	admin := v1.Group("/admin")
 	admin.Use(requireAuth(deps), middleware.RequireRoles(models.RoleSuperAdmin))
@@ -134,10 +164,14 @@ func NewRouter(deps Deps) *gin.Engine {
 		admin.DELETE("/kosts/:id", kostH.AdminDeleteKost)
 		admin.PATCH("/kosts/:id/verify", kostH.VerifyKost)
 		admin.PATCH("/kosts/:id/reject", kostH.RejectKost)
+		admin.POST("/kosts/:id/assign", surveyH.AssignTech)
+		admin.GET("/assignments", surveyH.ListAssignments)
 		admin.GET("/users", usersH.List)
 		admin.POST("/users", usersH.Create)
 		admin.PATCH("/users/:id", usersH.Update)
 		admin.DELETE("/users/:id", usersH.Delete)
+		admin.POST("/events", surveyH.CreateEvent)
+		admin.DELETE("/events/:id", surveyH.DeleteEvent)
 	}
 
 	// Upload (owner + admin only, CSRF already enforced)

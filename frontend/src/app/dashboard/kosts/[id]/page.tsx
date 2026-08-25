@@ -12,6 +12,7 @@ import { TableRoot, TableHeader, TableBody, TableRow, TableHead, TableCell } fro
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { WilayahSelect } from "@/components/kost/WilayahSelect";
 import { formatDateTime } from "@/utils/date";
+import { Home, Buildings11, PenToSquare } from "@tailgrids/icons";
 import { toast } from "sonner";
 import Link from "next/link";
 
@@ -145,10 +146,14 @@ export default function KostDetailPage() {
         {kost.status === "pending" && <span className="text-xs text-zinc-500">Sedang dicek oleh tim kami ya</span>}
       </div>
 
-      {/* ===== Edit info kost ===== */}
-      <Card className="border-0 shadow-sm">
+      {/* ===== Dua kolom: kiri edit info kost, kanan tambah kamar ===== */}
+      <div className="grid items-start gap-6 lg:grid-cols-2">
+        {/* Kiri: Edit info kost */}
+        <Card className="border-0 shadow-sm">
         <div className="mb-4 flex items-center gap-2">
-          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#f5f0ff] text-[#8550e6]">✎</span>
+          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#f5f0ff] text-[#8550e6]">
+            <PenToSquare size={18} />
+          </span>
           <h2 className="font-semibold">Ubah Info Kost</h2>
         </div>
         <div className="space-y-4">
@@ -177,20 +182,20 @@ export default function KostDetailPage() {
         </div>
       </Card>
 
-      {/* ===== Tambah kamar (di atas) ===== */}
-      <Card className="border-0 shadow-sm">
+        {/* Kanan: Tambah kamar */}
+        <Card className="border-0 shadow-sm">
         <div className="mb-4 flex items-center gap-2">
-          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">🛏</span>
+          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+            <Home size={18} />
+          </span>
           <h2 className="font-semibold">Tambah Kamar Baru</h2>
         </div>
 
-        <div className="rounded-xl border border-dashed bg-zinc-50 p-4 space-y-4">
-          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
-            <Input label="Nomor Kamar *" value={newRoom.room_number} onChange={(e) => setNewRoom((s) => ({ ...s, room_number: e.target.value }))} placeholder="Contoh: A101" />
-            <Input label="Harga / Bulan *" type="number" value={String(newRoom.price_monthly)} onChange={(e) => setNewRoom((s) => ({ ...s, price_monthly: e.target.value }))} placeholder="1000000" />
-            <Input label="Luas (m²)" type="number" value={String(newRoom.luas)} onChange={(e) => setNewRoom((s) => ({ ...s, luas: e.target.value }))} placeholder="Contoh: 12" min={0} />
-            <Input label="Fasilitas (pisah koma)" value={newRoom.facilities} onChange={(e) => setNewRoom((s) => ({ ...s, facilities: e.target.value }))} placeholder="ac, wifi, kasur" />
-          </div>
+        <div className="space-y-4">
+          <Input label="Nomor Kamar *" value={newRoom.room_number} onChange={(e) => setNewRoom((s) => ({ ...s, room_number: e.target.value }))} placeholder="Contoh: A101" />
+          <Input label="Harga / Bulan *" type="number" value={String(newRoom.price_monthly)} onChange={(e) => setNewRoom((s) => ({ ...s, price_monthly: e.target.value }))} placeholder="1000000" />
+          <Input label="Luas (m²)" type="number" value={String(newRoom.luas)} onChange={(e) => setNewRoom((s) => ({ ...s, luas: e.target.value }))} placeholder="Contoh: 12" min={0} />
+          <Input label="Fasilitas (pisah koma)" value={newRoom.facilities} onChange={(e) => setNewRoom((s) => ({ ...s, facilities: e.target.value }))} placeholder="ac, wifi, kasur" />
 
           {/* Foto kamar — bisa banyak, foto pertama jadi thumbnail */}
           <div>
@@ -217,12 +222,15 @@ export default function KostDetailPage() {
             {createRoomMut.isPending ? "Menyimpan..." : "+ Simpan Kamar"}
           </Button>
         </div>
-      </Card>
+        </Card>
+      </div>
 
-      {/* ===== Daftar kamar (di bawah, ada pagination) ===== */}
+      {/* ===== Daftar kamar (full width, ada pagination) ===== */}
       <Card className="border-0 shadow-sm">
         <div className="mb-4 flex items-center gap-2">
-          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#f5f0ff] text-[#8550e6]">📋</span>
+          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#f5f0ff] text-[#8550e6]">
+            <Buildings11 size={18} />
+          </span>
           <h2 className="font-semibold">Daftar Kamar • {allRooms.length}</h2>
         </div>
 
@@ -250,7 +258,7 @@ export default function KostDetailPage() {
                     <TableRow key={r.id} className="hover:bg-[#f5f0ff]/30">
                       <TableCell>
                         <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-lg bg-zinc-100">
-                          {r.photos?.[0] ? <img src={r.photos[0]} alt="" className="h-full w-full object-cover" /> : <span>🛏</span>}
+                          {r.photos?.[0] ? <img src={r.photos[0]} alt="" className="h-full w-full object-cover" /> :             <Home size={20} className="text-zinc-400" />}
                         </div>
                       </TableCell>
                       <TableCell><span className="font-mono text-sm font-semibold">{r.room_number}</span></TableCell>

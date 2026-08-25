@@ -26,10 +26,10 @@ func NewService(repo *Repository, cfg *config.Config) *Service {
 	return &Service{repo: repo, cfg: cfg}
 }
 
-func (s *Service) Register(ctx context.Context, in RegisterInput) (*models.User, error) {
+func (s *Service) Register(ctx context.Context, in RegisterInput) (*models.User, string, error) {
 	hash, err := bcrypt.GenerateFromPassword([]byte(in.Password), 12)
 	if err != nil {
-		return nil, response.ErrInternal
+		return nil, "", response.ErrInternal
 	}
 	u := &models.User{
 		Name:         strings.TrimSpace(in.Name),
@@ -37,19 +37,79 @@ func (s *Service) Register(ctx context.Context, in RegisterInput) (*models.User,
 		Phone:        strings.TrimSpace(in.Phone),
 		PasswordHash: string(hash),
 		Role:         models.UserRole(in.Role),
+		Gender:       in.Gender,
 		IsActive:     true,
 	}
 	if err := s.repo.CreateUser(ctx, u); err != nil {
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
-			return nil, response.ErrConflict("Email already registered")
+			return nil, "", response.ErrConflict("Email already registered")
 		}
 		// Postgres unique violation fallback text.
 		if strings.Contains(err.Error(), "duplicate key") {
-			return nil, response.ErrConflict("Email already registered")
+			return nil, "", response.ErrConflict("Email already registered")
 		}
-		return nil, response.ErrInternal
+		return nil, "", response.ErrInternal
 	}
-	return u, nil
+
+	// Email verification token (dev: link dikirim ke log & response).
+	token, err := s.createVerificationToken(ctx, u.ID)
+	if err != nil {
+		return nil, "", response.ErrInternal
+	}
+	return u, token, nil
+}
+
+func (s *Service) createVerificationToken(ctx context.Context, userID uuid.UUID) (string, error) {
+	token, err := randomHex(32)
+	if err != nil {
+		return "", err
+	}
+	t := &models.EmailVerificationToken{
+		UserID:    userID,
+		Token:     hashToken(token),
+		ExpiresAt: time.Now().Add(24 * time.Hour),
+	}
+	if err := s.repo.db.WithContext(ctx).Create(t).Error; err != nil {
+		return "", err
+	}
+	return token, nil
+}
+
+// VerifyEmail marks the user verified if token valid & unused.
+func (s *Service) VerifyEmail(ctx context.Context, rawToken string) error {
+	hash := hashToken(rawToken)
+	var t models.EmailVerificationToken
+	err := s.repo.db.WithContext(ctx).First(&t, "token = ?", hash).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return response.NewError(400, "BAD_REQUEST", "Token verifikasi tidak valid")
+		}
+		return response.ErrInternal
+	}
+	if t.UsedAt != nil {
+		return response.NewError(400, "BAD_REQUEST", "Token sudah digunakan")
+	}
+	if time.Now().After(t.ExpiresAt) {
+		return response.NewError(400, "BAD_REQUEST", "Token kedaluwarsa, silakan daftar ulang")
+	}
+	return s.repo.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(&models.EmailVerificationToken{}).Where("id = ?", t.ID).Update("used_at", time.Now()).Error; err != nil {
+			return err
+		}
+		return tx.Model(&models.User{}).Where("id = ?", t.UserID).Update("email_verified", true).Error
+	})
+}
+
+// ResendVerification creates a fresh token for an unverified user.
+func (s *Service) ResendVerification(ctx context.Context, email string) (string, error) {
+	u, err := s.repo.GetUserByEmail(ctx, strings.ToLower(strings.TrimSpace(email)))
+	if err != nil {
+		return "", response.NewError(404, "NOT_FOUND", "Email tidak terdaftar")
+	}
+	if u.EmailVerified {
+		return "", response.NewError(400, "BAD_REQUEST", "Email sudah terverifikasi")
+	}
+	return s.createVerificationToken(ctx, u.ID)
 }
 
 func (s *Service) Login(ctx context.Context, email, password string) (*models.User, string, string, string, error) {
@@ -63,6 +123,9 @@ func (s *Service) Login(ctx context.Context, email, password string) (*models.Us
 	}
 	if !u.IsActive {
 		return nil, "", "", "", response.NewError(403, "FORBIDDEN", "Account is disabled")
+	}
+	if !u.EmailVerified {
+		return nil, "", "", "", response.NewError(403, "EMAIL_NOT_VERIFIED", "Email belum diverifikasi. Cek email Anda untuk link verifikasi.")
 	}
 	if err := bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(password)); err != nil {
 		return nil, "", "", "", response.NewError(401, "UNAUTHORIZED", "Invalid email or password")
@@ -180,11 +243,12 @@ func (s *Service) EnsureSuperAdmin(ctx context.Context) error {
 		return err
 	}
 	u := &models.User{
-		Name:         "Super Admin",
-		Email:        strings.ToLower(s.cfg.AdminEmail),
-		PasswordHash: string(hash),
-		Role:         models.RoleSuperAdmin,
-		IsActive:     true,
+		Name:          "Super Admin",
+		Email:         strings.ToLower(s.cfg.AdminEmail),
+		PasswordHash:  string(hash),
+		Role:          models.RoleSuperAdmin,
+		EmailVerified: true,
+		IsActive:      true,
 	}
 	if err := s.repo.db.WithContext(ctx).Create(u).Error; err != nil {
 		return err

@@ -13,18 +13,21 @@ const (
 	RoleSuperAdmin UserRole = "super_admin"
 	RoleOwner      UserRole = "owner"
 	RoleTenant     UserRole = "tenant"
+	RoleTeknisi    UserRole = "teknisi"
 )
 
 type User struct {
-	ID           uuid.UUID `gorm:"type:uuid;default:gen_random_uuid()" json:"id"`
-	Name         string    `gorm:"size:120;not null" json:"name"`
-	Email        string    `gorm:"size:255;not null;uniqueIndex" json:"email"`
-	Phone        string    `gorm:"size:20" json:"phone"`
-	PasswordHash string    `gorm:"size:255;not null" json:"-"`
-	Role         UserRole  `gorm:"type:user_role;not null;default:'tenant'" json:"role"`
-	IsActive     bool      `gorm:"not null;default:true" json:"is_active"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	ID            uuid.UUID `gorm:"type:uuid;default:gen_random_uuid()" json:"id"`
+	Name          string    `gorm:"size:120;not null" json:"name"`
+	Email         string    `gorm:"size:255;not null;uniqueIndex" json:"email"`
+	Phone         string    `gorm:"size:20" json:"phone"`
+	PasswordHash  string    `gorm:"size:255;not null" json:"-"`
+	Role          UserRole  `gorm:"type:user_role;not null;default:'tenant'" json:"role"`
+	Gender        string    `gorm:"size:20;not null;default:''" json:"gender"`
+	EmailVerified bool      `gorm:"not null;default:false" json:"email_verified"`
+	IsActive      bool      `gorm:"not null;default:true" json:"is_active"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
 }
 
 func (User) TableName() string { return "users" }
@@ -132,6 +135,7 @@ type Booking struct {
 	Tenant       User          `gorm:"foreignKey:TenantID" json:"tenant,omitempty"`
 	Status       BookingStatus `gorm:"type:booking_status;not null;default:'pending'" json:"status"`
 	RejectReason *string       `gorm:"type:text" json:"reject_reason,omitempty"`
+	SurveyDate   *time.Time    `gorm:"type:date" json:"survey_date,omitempty"`
 	ExpiresAt    time.Time     `json:"expires_at"`
 	DecidedBy    *uuid.UUID    `gorm:"type:uuid" json:"decided_by,omitempty"`
 	DecidedAt    *time.Time    `json:"decided_at,omitempty"`
@@ -172,3 +176,84 @@ type Notification struct {
 }
 
 func (Notification) TableName() string { return "notifications" }
+
+type EmailVerificationToken struct {
+	ID        uuid.UUID  `gorm:"type:uuid;default:gen_random_uuid()" json:"id"`
+	UserID    uuid.UUID  `gorm:"type:uuid;not null" json:"user_id"`
+	Token     string     `gorm:"size:128;not null;uniqueIndex" json:"-"`
+	ExpiresAt time.Time  `json:"expires_at"`
+	UsedAt    *time.Time `json:"used_at,omitempty"`
+	CreatedAt time.Time  `json:"created_at"`
+}
+
+func (EmailVerificationToken) TableName() string { return "email_verification_tokens" }
+
+type AssignmentStatus string
+
+const (
+	AssignmentAssigned  AssignmentStatus = "assigned"
+	AssignmentSurveying AssignmentStatus = "surveying"
+	AssignmentApproved  AssignmentStatus = "approved"
+	AssignmentRejected  AssignmentStatus = "rejected"
+)
+
+type KostAssignment struct {
+	ID         uuid.UUID        `gorm:"type:uuid;default:gen_random_uuid()" json:"id"`
+	KostID     uuid.UUID        `gorm:"type:uuid;not null" json:"kost_id"`
+	Kost       Kost             `gorm:"foreignKey:KostID" json:"kost,omitempty"`
+	TeknisiID  uuid.UUID        `gorm:"type:uuid;not null" json:"teknisi_id"`
+	Teknisi    User             `gorm:"foreignKey:TeknisiID" json:"teknisi,omitempty"`
+	Status     AssignmentStatus `gorm:"not null;default:'assigned'" json:"status"`
+	Decision   *string          `gorm:"size:20" json:"decision,omitempty"`
+	Note       *string          `gorm:"type:text" json:"note,omitempty"`
+	AssignedBy *uuid.UUID       `gorm:"type:uuid" json:"assigned_by,omitempty"`
+	DecidedAt  *time.Time       `json:"decided_at,omitempty"`
+	CreatedAt  time.Time        `json:"created_at"`
+	UpdatedAt  time.Time        `json:"updated_at"`
+}
+
+func (KostAssignment) TableName() string { return "kost_assignments" }
+
+type Conversation struct {
+	ID            uuid.UUID `gorm:"type:uuid;default:gen_random_uuid()" json:"id"`
+	ParticipantA  uuid.UUID `gorm:"type:uuid;not null" json:"participant_a"`
+	ParticipantB  uuid.UUID `gorm:"type:uuid;not null" json:"participant_b"`
+	LastMessage   string    `gorm:"-" json:"last_message,omitempty"`
+	LastMessageAt *time.Time `gorm:"-" json:"last_message_at,omitempty"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
+}
+
+func (Conversation) TableName() string { return "conversations" }
+
+type Message struct {
+	ID             uuid.UUID  `gorm:"type:uuid;default:gen_random_uuid()" json:"id"`
+	ConversationID uuid.UUID  `gorm:"type:uuid;not null" json:"conversation_id"`
+	SenderID       uuid.UUID  `gorm:"type:uuid;not null" json:"sender_id"`
+	Sender         User       `gorm:"foreignKey:SenderID" json:"sender,omitempty"`
+	Body           string     `gorm:"type:text;not null" json:"body"`
+	ReadAt         *time.Time `json:"read_at,omitempty"`
+	CreatedAt      time.Time  `json:"created_at"`
+}
+
+func (Message) TableName() string { return "messages" }
+
+type Event struct {
+	ID          uuid.UUID `gorm:"type:uuid;default:gen_random_uuid()" json:"id"`
+	Title       string    `gorm:"size:200;not null" json:"title"`
+	EventType   string    `gorm:"size:30;not null;default:'survey'" json:"event_type"`
+	KostID      *uuid.UUID `gorm:"type:uuid" json:"kost_id,omitempty"`
+	Kost        Kost      `gorm:"foreignKey:KostID" json:"kost,omitempty"`
+	OwnerID     *uuid.UUID `gorm:"type:uuid" json:"owner_id,omitempty"`
+	Owner       User      `gorm:"foreignKey:OwnerID" json:"owner,omitempty"`
+	TeknisiID   *uuid.UUID `gorm:"type:uuid" json:"teknisi_id,omitempty"`
+	Teknisi     User      `gorm:"foreignKey:TeknisiID" json:"teknisi,omitempty"`
+	BookingID   *uuid.UUID `gorm:"type:uuid" json:"booking_id,omitempty"`
+	ScheduledAt time.Time `json:"scheduled_at"`
+	Notes       string    `gorm:"type:text;not null;default:''" json:"notes"`
+	CreatedBy   *uuid.UUID `gorm:"type:uuid" json:"created_by,omitempty"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+func (Event) TableName() string { return "events" }

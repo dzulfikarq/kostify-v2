@@ -85,6 +85,7 @@ export default function UsersPage() {
               <select value={form.role} onChange={(e) => setForm((s) => ({ ...s, role: e.target.value }))} className="w-full rounded-xl border border-zinc-200 bg-white px-3.5 py-2.5 text-sm focus:border-[#8550e6] focus:ring-2 focus:ring-[#ede5fe] outline-none">
                 <option value="tenant">tenant</option>
                 <option value="owner">owner</option>
+                <option value="teknisi">teknisi</option>
                 <option value="super_admin">super_admin</option>
               </select>
             </label>
@@ -132,6 +133,7 @@ export default function UsersPage() {
                     <select value={u.role} onChange={(e) => { const v = e.target.value; if (v === u.role) return; setConfirmDialog({ title: t("us.cd_role"), desc: v, tone: "violet", action: () => { updateMut.mutate({ id: u.id, body: { role: v } }); setConfirmDialog(null); } }); }} className="rounded-full border border-zinc-200 bg-white px-2.5 py-1 text-xs font-medium outline-none focus:border-[#8550e6]">
                       <option value="tenant">tenant</option>
                       <option value="owner">owner</option>
+                      <option value="teknisi">teknisi</option>
                       <option value="super_admin">super_admin</option>
                     </select>
                   </TableCell>

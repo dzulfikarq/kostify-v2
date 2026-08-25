@@ -2,11 +2,27 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useMe, useLogout } from "@/hooks/useAuth";
 import { useLang, LangToggle } from "@/i18n";
+import { chatApi } from "@/services/api/extras";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Home } from "@tailgrids/icons";
+import { Home, Comment1Dots, User2 } from "@tailgrids/icons";
+
+function ChatBadge() {
+  const { data } = useQuery({
+    queryKey: ["chat-unread"],
+    queryFn: () => chatApi.unread(),
+    refetchInterval: 20000,
+  });
+  if (!data) return null;
+  return (
+    <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+      {data > 9 ? "9+" : data}
+    </span>
+  );
+}
 
 export function PublicHeader() {
   const { data: user } = useMe();
@@ -35,6 +51,14 @@ export function PublicHeader() {
 
           <div className="header-actions">
             <LangToggle />
+            {user && (
+              <Link href="/chat" aria-label="Chat" style={{ textDecoration: "none" }}>
+                <span className="relative flex h-10 w-10 items-center justify-center rounded-lg text-[#675F73] transition hover:bg-[#E9E2F2]">
+                  <Comment1Dots size={20} />
+                  <ChatBadge />
+                </span>
+              </Link>
+            )}
             {!user ? (
               <>
                 <Link href="/login">
@@ -50,8 +74,10 @@ export function PublicHeader() {
               </>
             ) : (
               <>
-                <span className="hidden text-sm text-zinc-600 sm:block">{user.name}</span>
-                <Badge tone={user.role === "owner" ? "blue" : user.role === "super_admin" ? "amber" : "zinc"}>{user.role}</Badge>
+                <Link href="/dashboard/profile" className="btn-ghost" style={{ textDecoration: "none" }}>
+                  <User2 size={16} style={{ marginRight: 6 }} />
+                  My Profile
+                </Link>
                 <Button variant="ghost" size="sm" onClick={() => logout.mutate()} disabled={logout.isPending} className="btn-ghost">
                   {t("ph.keluar")}
                 </Button>

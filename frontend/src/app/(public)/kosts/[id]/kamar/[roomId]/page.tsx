@@ -7,6 +7,7 @@ import { useLang } from "@/i18n";
 import { useMe } from "@/hooks/useAuth";
 import { kostsApi } from "@/services/api/kosts";
 import { bookingsApi } from "@/services/api/bookings";
+import { chatApi } from "@/services/api/extras";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -17,6 +18,7 @@ import {
   Buildings11,
   MapMarker5,
   User2,
+  Comment1Dots,
 } from "@tailgrids/icons";
 
 const rupiah = (n: number) => `Rp ${Number(n).toLocaleString("id-ID")}`;
@@ -165,7 +167,7 @@ export default function RoomDetailPage() {
             >
                 <User2 size={22} />
             </div>
-            <div>
+            <div style={{ flex: 1 }}>
               <div style={{ fontSize: 13, color: "var(--color-muted)" }}>{t("kd.kontak")}</div>
               <div style={{ fontWeight: 600, color: "var(--color-text)" }}>
                 {kost.owner?.name || t("kd.pemilik")}
@@ -174,6 +176,28 @@ export default function RoomDetailPage() {
                 <div style={{ fontSize: 13, color: "var(--color-muted)" }}>{kost.owner.email}</div>
               ) : null}
             </div>
+            {kost.owner_id !== user?.id && (
+              <Button
+                className="btn-primary"
+                style={{ padding: "8px 14px", fontSize: 13, whiteSpace: "nowrap" }}
+                onClick={async () => {
+                  if (!user) {
+                    toast.error("Login dulu untuk chat");
+                    router.push(`/login?next=/kosts/${kost.id}/kamar/${room.id}`);
+                    return;
+                  }
+                  try {
+                    const conv = await chatApi.start(kost.owner_id);
+                    router.push(`/chat?c=${conv.id}`);
+                  } catch {
+                    toast.error("Gagal memulai chat");
+                  }
+                }}
+              >
+                <Comment1Dots size={14} style={{ marginRight: 6, verticalAlign: "-2px" }} />
+                Chat
+              </Button>
+            )}
           </div>
         </div>
 

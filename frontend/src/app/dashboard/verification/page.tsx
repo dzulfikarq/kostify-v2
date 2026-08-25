@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { dashboardApi } from "@/services/api/dashboard";
+import { surveyApi, chatApi } from "@/services/api/extras";
 import { useMe } from "@/hooks/useAuth";
 import { Card, Skeleton } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -43,6 +44,20 @@ export default function VerificationPage() {
     mutationFn: ({ id, note }: { id: string; note: string }) => dashboardApi.rejectKost(id, note),
     onSuccess: () => { toast.success("Kost ditolak"); setRejectTarget(null); setRejectNote(""); invalidate(); },
     onError: (e: any) => toast.error(e.response?.data?.error?.message || "Gagal menolak"),
+  });
+
+  const teknisiQ = useQuery({
+    queryKey: ["teknisi-list"],
+    queryFn: () => surveyApi.listTeknisi(),
+    enabled: user?.role === "super_admin",
+  });
+  const [assignTarget, setAssignTarget] = useState<null | { id: string; name: string }>(null);
+  const [assignTeknisi, setAssignTeknisi] = useState("");
+  const [assignDate, setAssignDate] = useState("");
+  const assignMut = useMutation({
+    mutationFn: () => surveyApi.assign(assignTarget!.id, assignTeknisi, assignDate ? new Date(assignDate + "T09:00:00").toISOString() : undefined),
+    onSuccess: () => { toast.success("Teknisi ditugaskan untuk survey"); setAssignTarget(null); invalidate(); },
+    onError: (e: any) => toast.error(e.response?.data?.error?.message || "Gagal assign teknisi"),
   });
 
   if (user && user.role !== "super_admin") return <div className="p-6 text-sm">Hanya super admin</div>;
@@ -86,8 +101,24 @@ export default function VerificationPage() {
                   <TableCell>
                     <div className="flex flex-wrap justify-end items-center gap-1">
                       <Link href={`/kosts/${k.id}`} target="_blank"><Button variant="outline" size="sm">{t("c.detail")}</Button></Link>
+                      <button
+                        className="rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 text-xs font-medium text-[#8550e6] hover:bg-[#f5f0ff]"
+                        onClick={async () => {
+                          try {
+                            const conv = await chatApi.start(k.owner_id);
+                            window.open(`/chat?c=${conv.id}`, "_blank");
+                          } catch {
+                            toast.error("Gagal memulai chat");
+                          }
+                        }}
+                      >
+                        Chat Pemilik
+                      </button>
                       <Button size="sm" onClick={() => setConfirm({ title: t("vf.cd_setuju", { name: k.name }), desc: t("vf.cd_setuju_desc"), tone: "violet", action: () => { verifyMut.mutate(k.id); setConfirm(null); } })} className="shadow-sm">{t("vf.setujui")}</Button>
                       <Button variant="outline" size="sm" className="text-red-600 hover:bg-red-50" onClick={() => { setRejectTarget({ id: k.id, name: k.name }); setRejectNote(""); }}>{t("vf.tolak")}</Button>
+                      <Button size="sm" className="bg-zinc-900 hover:bg-black" onClick={() => { setAssignTarget({ id: k.id, name: k.name }); setAssignTeknisi(""); setAssignDate(""); }}>
+                        Survey Teknisi
+                      </Button>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -95,6 +126,48 @@ export default function VerificationPage() {
             </TableBody>
           </TableRoot>
         </Card>
+      )}
+
+      {/* Dialog assign teknisi */}
+      {assignTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+          <Card className="w-full max-w-sm space-y-3 border-0 shadow-xl">
+            <h3 className="font-semibold">Assign Teknisi — {assignTarget.name}</h3>
+            <label className="block space-y-1.5">
+              <span className="text-sm font-medium text-zinc-700">Teknisi *</span>
+              <select value={assignTeknisi} onChange={(e) => setAssignTeknisi(e.target.value)} className="w-full rounded-xl border border-zinc-200 bg-white px-3.5 py-2.5 text-sm">
+                <option value="">Pilih teknisi</option>
+                {(teknisiQ.data || []).map((t) => (
+                  <option key={t.id} value={t.id}>{t.name} ({t.email})</option>
+                ))}
+              </select>
+            </label>
+            <label className="block space-y-1.5">
+              <span className="text-sm font-medium text-zinc-700">Jadwal Survey (opsional)</span>
+              <input
+                type="datetime-local"
+                value={assignDate}
+                onChange={(e) => setAssignDate(e.target.value)}
+                className="w-full rounded-xl border border-zinc-200 bg-white px-3.5 py-2.5 text-sm"
+              />
+            </label>
+            {!(teknisiQ.data || []).length && (
+              <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                Belum ada teknisi. Buat dulu di halaman Pengguna dengan role teknisi.
+              </p>
+            )}
+            <div className="flex gap-2 pt-1">
+              <Button variant="outline" className="flex-1" onClick={() => setAssignTarget(null)}>Batal</Button>
+              <Button
+                className="flex-1 shadow-sm"
+                disabled={!assignTeknisi || assignMut.isPending}
+                onClick={() => assignMut.mutate()}
+              >
+                {assignMut.isPending ? "Menugaskan..." : "Assign"}
+              </Button>
+            </div>
+          </Card>
+        </div>
       )}
 
       {/* Dialog alasan penolakan */}

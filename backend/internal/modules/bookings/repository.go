@@ -41,7 +41,16 @@ func (r *Repository) GetKostByID(ctx context.Context, tx *gorm.DB, kostID uuid.U
 	return &k, nil
 }
 
-func (r *Repository) CreateBookingTx(ctx context.Context, tenantID, roomID uuid.UUID) (*models.Booking, error) {
+// GetUserByID returns a user or nil (best-effort, used for display names).
+func (r *Repository) GetUserByID(ctx context.Context, id uuid.UUID) (*models.User, error) {
+	var u models.User
+	if err := r.db.WithContext(ctx).First(&u, "id = ?", id).Error; err != nil {
+		return nil, err
+	}
+	return &u, nil
+}
+
+func (r *Repository) CreateBookingTx(ctx context.Context, tenantID, roomID uuid.UUID, surveyDate time.Time) (*models.Booking, error) {
 	var booking *models.Booking
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		room, err := r.GetRoomLocked(ctx, tx, roomID)
@@ -61,10 +70,11 @@ func (r *Repository) CreateBookingTx(ctx context.Context, tenantID, roomID uuid.
 
 		expiresAt := time.Now().Add(time.Duration(r.cfg.BookingExpiryHours) * time.Hour)
 		b := &models.Booking{
-			RoomID:    roomID,
-			TenantID:  tenantID,
-			Status:    models.BookingPending,
-			ExpiresAt: expiresAt,
+			RoomID:     roomID,
+			TenantID:   tenantID,
+			Status:     models.BookingPending,
+			SurveyDate: &surveyDate,
+			ExpiresAt:  expiresAt,
 		}
 		if err := tx.Create(b).Error; err != nil {
 			return err

@@ -26,8 +26,19 @@ func NewService(repo *Repository, notify notifications.Notifier) *Service {
 	return &Service{repo: repo, notify: notify}
 }
 
-func (s *Service) Create(ctx context.Context, tenantID, roomID uuid.UUID) (*models.Booking, error) {
-	booking, err := s.repo.CreateBookingTx(ctx, tenantID, roomID)
+func (s *Service) Create(ctx context.Context, tenantID, roomID uuid.UUID, surveyDate *time.Time) (*models.Booking, error) {
+	// Validasi tanggal survey: wajib, antara besok sampai maksimal 5 hari dari hari ini.
+	if surveyDate == nil {
+		return nil, response.ErrValidation([]response.ErrorDetail{{Field: "survey_date", Message: "tanggal survey wajib diisi"}})
+	}
+	today := time.Now().Truncate(24 * time.Hour)
+	maxDate := today.AddDate(0, 0, 5)
+	sd := surveyDate.Truncate(24 * time.Hour)
+	if sd.Before(today) || sd.After(maxDate) {
+		return nil, response.ErrValidation([]response.ErrorDetail{{Field: "survey_date", Message: "tanggal survey maksimal 5 hari dari hari ini"}})
+	}
+
+	booking, err := s.repo.CreateBookingTx(ctx, tenantID, roomID, sd)
 	if err != nil {
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
 			// Could be room not available (we reused ErrDuplicatedKey) or unique index.
@@ -51,12 +62,28 @@ func (s *Service) Create(ctx context.Context, tenantID, roomID uuid.UUID) (*mode
 		}
 		return nil, response.ErrInternal
 	}
-	// Notify the kost owner about the new booking request.
+	// Notify the kost owner about the new booking request + buat agenda event survey.
 	var room models.Room
 	if err := s.repo.db.WithContext(ctx).First(&room, "id = ?", booking.RoomID).Error; err == nil {
 		var kost models.Kost
 		if err := s.repo.db.WithContext(ctx).First(&kost, "id = ?", room.KostID).Error; err == nil {
 			s.notify(ctx, kost.OwnerID, "Booking baru", `Kamar `+room.RoomNumber+` di "`+kost.Name+`" di-booking, berlaku 3 hari.`, "/dashboard/bookings")
+			// Agenda survey otomatis untuk pemilik kost (dibuat oleh tenant).
+			tenant, _ := s.repo.GetUserByID(ctx, tenantID)
+			tenantName := "Penyewa"
+			if tenant != nil {
+				tenantName = tenant.Name
+			}
+			event := &models.Event{
+				Title:       "Survey booking " + tenantName + " — kamar " + room.RoomNumber,
+				EventType:   "survey_booking",
+				KostID:      &kost.ID,
+				OwnerID:     &kost.OwnerID,
+				BookingID:   &booking.ID,
+				ScheduledAt: sd.Add(9 * time.Hour), // default jam 09:00
+				Notes:       "Jadwal survey & bertemu penyewa (dibuat otomatis dari booking)",
+			}
+			_ = s.repo.db.WithContext(ctx).Create(event).Error
 		}
 	}
 	return booking, nil

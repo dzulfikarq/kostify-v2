@@ -28,14 +28,12 @@ export function useLogin() {
 }
 
 export function useRegister() {
-  const router = useRouter();
   return useMutation({
-    mutationFn: (body: { name: string; email: string; password: string; role: string }) =>
+    mutationFn: (body: { name: string; email: string; password: string; role: string; gender?: string }) =>
       authApi.register(body),
-    onSuccess: () => {
-      toast.success("Registrasi berhasil, silakan login");
-      router.push("/login");
-    },
+    // Jangan auto-redirect: user harus verifikasi email dulu (halaman register
+    // menampilkan notice + link dev). Router push dihapus.
+    onSuccess: () => {},
   });
 }
 

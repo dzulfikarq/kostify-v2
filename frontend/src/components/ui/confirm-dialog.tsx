@@ -12,9 +12,10 @@ type Props = {
   onConfirm: () => void;
   onCancel: () => void;
   loading?: boolean;
+  children?: React.ReactNode;
 };
 
-export function ConfirmDialog({ open, title, description, confirmText, cancelText, tone = "violet", onConfirm, onCancel, loading }: Props) {
+export function ConfirmDialog({ open, title, description, confirmText, cancelText, tone = "violet", onConfirm, onCancel, loading, children }: Props) {
   const { t } = useLang();
   confirmText = confirmText || t("c.konfirmasi");
   cancelText = cancelText || t("c.batal");
@@ -30,6 +31,7 @@ export function ConfirmDialog({ open, title, description, confirmText, cancelTex
             {description && <p className="mt-1 text-sm leading-6 text-zinc-600">{description}</p>}
           </div>
         </div>
+        {children}
         <div className="mt-6 flex gap-2">
           <Button variant="outline" className="flex-1" onClick={onCancel} disabled={!!loading}> {cancelText} </Button>
           <Button className={`flex-1 shadow-sm ${toneClass}`} onClick={onConfirm} disabled={!!loading}> {loading ? "Memproses..." : confirmText} </Button>

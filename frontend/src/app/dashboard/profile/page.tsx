@@ -18,17 +18,17 @@ export default function ProfilePage() {
   const logout = useLogout();
   const qc = useQueryClient();
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState({ name: "", phone: "" });
+  const [form, setForm] = useState({ name: "", phone: "", gender: "" });
 
   useEffect(() => {
-    if (user) setForm({ name: user.name, phone: user.phone || "" });
+    if (user) setForm({ name: user.name, phone: user.phone || "", gender: user.gender || "" });
   }, [user]);
 
   const saveMut = {
     isPending: false,
     mutate: async () => {
       try {
-        await dashboardApi.updateProfile({ name: form.name.trim(), phone: form.phone.trim() });
+        await dashboardApi.updateProfile({ name: form.name.trim(), phone: form.phone.trim(), gender: form.gender });
         toast.success(t("pf.sukses"));
         setEditing(false);
         qc.invalidateQueries({ queryKey: ["me"] });
@@ -62,8 +62,16 @@ export default function ProfilePage() {
           <div className="space-y-3 border-t pt-3">
             <Input label={t("pf.nama")} value={form.name} onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))} />
             <Input label={t("pf.telepon")} value={form.phone} onChange={(e) => setForm((s) => ({ ...s, phone: e.target.value }))} placeholder="0812..." inputMode="tel" />
+            <label className="block space-y-1.5">
+              <span className="text-sm font-medium text-zinc-700">Jenis Kelamin</span>
+              <select value={form.gender} onChange={(e) => setForm((s) => ({ ...s, gender: e.target.value }))} className="w-full rounded-xl border border-zinc-200 bg-white px-3.5 py-2.5 text-sm">
+                <option value="">Pilih (opsional)</option>
+                <option value="laki-laki">Laki-laki</option>
+                <option value="perempuan">Perempuan</option>
+              </select>
+            </label>
             <div className="flex gap-2">
-              <Button variant="outline" className="flex-1" onClick={() => { setEditing(false); setForm({ name: user.name, phone: user.phone || "" }); }}>{t("c.batal")}</Button>
+              <Button variant="outline" className="flex-1" onClick={() => { setEditing(false); setForm({ name: user.name, phone: user.phone || "", gender: user.gender || "" }); }}>{t("c.batal")}</Button>
               <Button className="flex-1 shadow-sm" disabled={form.name.trim().length < 2} onClick={() => saveMut.mutate()}>{t("c.simpan")}</Button>
             </div>
           </div>
@@ -72,6 +80,10 @@ export default function ProfilePage() {
             <div className="flex justify-between">
               <span className="text-zinc-500">{t("pf.telepon")}</span>
               <span>{user.phone || "-"}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-zinc-500">Jenis Kelamin</span>
+              <span>{user.gender ? (user.gender === "laki-laki" ? "Laki-laki" : "Perempuan") : "-"}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-zinc-500">{t("ud.status")}</span>

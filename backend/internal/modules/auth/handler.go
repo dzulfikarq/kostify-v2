@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"log/slog"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -30,12 +31,51 @@ func (h *Handler) Register(c *gin.Context) {
 		response.Fail(c, response.ErrValidation(errs))
 		return
 	}
-	u, err := h.svc.Register(c.Request.Context(), in)
+	u, verifyToken, err := h.svc.Register(c.Request.Context(), in)
 	if err != nil {
 		response.Fail(c, err)
 		return
 	}
-	response.Created(c, toUserJSON(u), "Registered successfully")
+	// Dev: kirim link verifikasi ke log (belum ada SMTP).
+	link := "/verify-email?token=" + verifyToken
+	slog.Info("email verification link", "email", u.Email, "link", link)
+	response.Created(c, gin.H{
+		"user":           toUserJSON(u),
+		"verify_link":    link, // ponytail: dev convenience, remove when SMTP ready
+	}, "Registrasi berhasil! Link verifikasi email telah dikirim ke email Anda. Silakan verifikasi sebelum login.")
+}
+
+// VerifyEmail activates a user account via token from email link.
+func (h *Handler) VerifyEmail(c *gin.Context) {
+	token := c.Query("token")
+	if token == "" {
+		response.Fail(c, response.ErrBadRequest("Token wajib diisi"))
+		return
+	}
+	if err := h.svc.VerifyEmail(c.Request.Context(), token); err != nil {
+		response.Fail(c, err)
+		return
+	}
+	response.OK(c, nil, "Email berhasil diverifikasi! Silakan login.")
+}
+
+// ResendVerification issues a new verification link.
+func (h *Handler) ResendVerification(c *gin.Context) {
+	var in struct {
+		Email string `json:"email"`
+	}
+	if err := c.ShouldBindJSON(&in); err != nil || in.Email == "" {
+		response.Fail(c, response.ErrBadRequest("Email wajib diisi"))
+		return
+	}
+	token, err := h.svc.ResendVerification(c.Request.Context(), in.Email)
+	if err != nil {
+		response.Fail(c, err)
+		return
+	}
+	link := "/verify-email?token=" + token
+	slog.Info("email verification link (resend)", "email", in.Email, "link", link)
+	response.OK(c, gin.H{"verify_link": link}, "Link verifikasi baru telah dikirim.")
 }
 
 func (h *Handler) Login(c *gin.Context) {
@@ -102,13 +142,15 @@ func (h *Handler) CSRF(c *gin.Context) {
 
 func toUserJSON(u *models.User) gin.H {
 	return gin.H{
-		"id":         u.ID,
-		"name":       u.Name,
-		"email":      u.Email,
-		"phone":      u.Phone,
-		"role":       u.Role,
-		"is_active":  u.IsActive,
-		"created_at": u.CreatedAt,
-		"updated_at": u.UpdatedAt,
+		"id":             u.ID,
+		"name":           u.Name,
+		"email":          u.Email,
+		"phone":          u.Phone,
+		"role":           u.Role,
+		"gender":         u.Gender,
+		"email_verified": u.EmailVerified,
+		"is_active":      u.IsActive,
+		"created_at":     u.CreatedAt,
+		"updated_at":     u.UpdatedAt,
 	}
 }

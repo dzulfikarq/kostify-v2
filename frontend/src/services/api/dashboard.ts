@@ -61,7 +61,7 @@ export const dashboardApi = {
   },
 
   // profile
-  updateProfile: (body: { name?: string; phone?: string }) =>
+  updateProfile: (body: { name?: string; phone?: string; gender?: string }) =>
     api.patch("/users/me", body).then((r) => r.data),
 
   // notifications

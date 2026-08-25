@@ -8,14 +8,21 @@ import (
 )
 
 type CreateBookingInput struct {
-	RoomID string `json:"room_id"`
+	RoomID     string `json:"room_id"`
+	SurveyDate string `json:"survey_date"` // YYYY-MM-DD, maksimal 5 hari dari hari ini
 }
 
 func (in CreateBookingInput) Validate() []response.ErrorDetail {
+	var errs []response.ErrorDetail
 	if strings.TrimSpace(in.RoomID) == "" {
-		return []response.ErrorDetail{{Field: "room_id", Message: "room_id is required"}}
+		errs = append(errs, response.ErrorDetail{Field: "room_id", Message: "room_id is required"})
 	}
-	return nil
+	if in.SurveyDate != "" {
+		if _, err := time.Parse("2006-01-02", in.SurveyDate); err != nil {
+			errs = append(errs, response.ErrorDetail{Field: "survey_date", Message: "must be YYYY-MM-DD"})
+		}
+	}
+	return errs
 }
 
 type ApproveBookingInput struct {
