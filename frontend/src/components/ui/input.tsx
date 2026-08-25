@@ -10,8 +10,8 @@ export const Input = forwardRef<
     <input
       ref={ref}
       className={cn(
-        "w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm outline-none placeholder:text-zinc-400",
-        error ? "border-red-300 focus:border-red-400" : "border-zinc-200 focus:border-zinc-400 focus:ring-2 focus:ring-zinc-100",
+        "w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm outline-none placeholder:text-zinc-400 transition",
+        error ? "border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-100" : "border-zinc-200 focus:border-[#8550e6] focus:ring-2 focus:ring-[#ede5fe]",
         className,
       )}
       {...props}
