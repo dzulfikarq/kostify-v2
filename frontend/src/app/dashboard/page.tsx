@@ -7,6 +7,8 @@ import { Card, Skeleton } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { useLang } from "@/i18n";
+import { formatDateTime } from "@/utils/date";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis } from "recharts";
 
 const VIOLET = "#8550e6";
@@ -19,6 +21,7 @@ export default function DashboardPage() {
   const { data: user } = useMe();
   const isOwner = user?.role === "owner";
   const isAdmin = user?.role === "super_admin";
+  const { t } = useLang();
 
   const { data: stats, isLoading } = useQuery({
     queryKey: ["dashboard-stats"],
@@ -38,8 +41,8 @@ export default function DashboardPage() {
     enabled: isOwner,
   });
 
-  if (!user) return <div className="p-8 text-center text-sm text-zinc-500">Memuat...</div>;
-  if (!isOwner && !isAdmin) return <div className="p-8 text-center text-sm">Akses dashboard hanya untuk pemilik / admin</div>;
+  if (!user) return <div className="p-8 text-center text-sm text-zinc-500">{t("c.muat")}</div>;
+  if (!isOwner && !isAdmin) return <div className="p-8 text-center text-sm">{t("ph.dashboard")} � owner / admin</div>;
 
   if (isAdmin) {
     return (
@@ -48,16 +51,16 @@ export default function DashboardPage() {
           <h1 className="text-3xl font-bold tracking-tight">Halo, {user.name} ✨</h1>
           <p className="mt-2 max-w-xl text-sm text-violet-100">Panel super admin — verifikasi kost baru dan kelola pengguna untuk menjaga kepercayaan platform.</p>
           <div className="mt-6 flex gap-3">
-            <Link href="/dashboard/verification"><Button variant="outline" className="bg-white text-zinc-900 hover:bg-zinc-50">Verifikasi Kost</Button></Link>
-            <Link href="/dashboard/users"><Button variant="ghost" className="bg-white/10 text-white hover:bg-white/20 border border-white/20">Kelola Users</Button></Link>
+            <Link href="/dashboard/verification"><Button variant="outline" className="bg-white text-zinc-900 hover:bg-zinc-50">{t("vf.judul")}</Button></Link>
+            <Link href="/dashboard/users"><Button variant="ghost" className="bg-white/10 text-white hover:bg-white/20 border border-white/20">{t("us.judul")}</Button></Link>
           </div>
         </div>
 
         <div className="grid gap-4 md:grid-cols-3">
           <Card className="border-0 bg-white shadow-sm">
-            <p className="text-xs font-medium tracking-widest text-zinc-500 uppercase">Menunggu Verifikasi</p>
+            <p className="text-xs font-medium tracking-widest text-zinc-500 uppercase">{t("status.pending")}</p>
             <p className="mt-2 text-3xl font-bold">{(pendingKosts as any)?.pagination?.total ?? "-"}</p>
-            <p className="text-xs text-zinc-500">Kost pending perlu review</p>
+            <p className="text-xs text-zinc-500">{t("vf.sub")}</p>
           </Card>
           <Card className="border-0 bg-white shadow-sm">
             <p className="text-xs font-medium tracking-widest text-zinc-500 uppercase">Aksi Cepat</p>
@@ -99,15 +102,15 @@ export default function DashboardPage() {
   const occupancy = Number(s?.occupancy_rate || 0);
 
   const donut = [
-    { name: "Terisi", value: occupied, color: VIOLET },
-    { name: "Kosong", value: available, color: EMERALD },
+    { name: t("dash.kamar_occupied"), value: occupied, color: VIOLET },
+    { name: t("c.nonaktif") === "Inactive" ? "Empty" : "Kosong", value: available, color: EMERALD },
     { name: "Reserved", value: reserved, color: AMBER },
   ].filter((d) => d.value > 0);
 
   const barData = [
-    { name: "Pending", v: pending },
-    { name: "Aktif", v: active },
-    { name: "Kosong", v: available },
+    { name: t("status.pending"), v: pending },
+    { name: t("ct.berjalan"), v: active },
+    { name: t("c.nonaktif") === "Inactive" ? "Empty" : "Kosong", v: available },
   ];
 
   return (
@@ -118,13 +121,13 @@ export default function DashboardPage() {
         <div className="absolute -bottom-10 -left-10 h-32 w-32 rounded-full bg-white/10 blur-2xl" />
         <div className="relative">
           <p className="text-xs font-medium tracking-widest text-violet-100 uppercase">Kostify Owner</p>
-          <h1 className="mt-2 text-3xl font-bold tracking-tight">Selamat datang, {user.name} 👋</h1>
+          <h1 className="mt-2 text-3xl font-bold tracking-tight">{t("dash.salam.siang")}, {user.name} 👋</h1>
           <p className="mt-2 max-w-xl text-sm leading-6 text-violet-100">
-            {total === 0 ? "Mulai dengan menambah kost pertama — verifikasi 1×24 jam." : `${total} kamar • ${occupancy.toFixed(0)}% okupansi • ${pending} booking menunggu`}
+            {total === 0 ? t("kost.kosong.sub") : `${total} kamar • ${occupancy.toFixed(0)}% okupansi • ${pending} booking menunggu`}
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
-            <Link href="/dashboard/kosts/new"><Button className="bg-white text-zinc-900 hover:bg-zinc-100">Tambah Kost</Button></Link>
-            <Link href="/dashboard/bookings"><Button variant="outline" className="border-white/20 bg-white/10 text-white hover:bg-white/20">Inbox Booking {pending > 0 && `(${pending})`}</Button></Link>
+            <Link href="/dashboard/kosts/new"><Button className="bg-white text-zinc-900 hover:bg-zinc-100">{t("kost.tambah")}</Button></Link>
+            <Link href="/dashboard/bookings"><Button variant="outline" className="border-white/20 bg-white/10 text-white hover:bg-white/20">{t("nav.bookings")} {pending > 0 && `(${pending})`}</Button></Link>
           </div>
         </div>
       </div>
@@ -133,7 +136,7 @@ export default function DashboardPage() {
       <div className="grid gap-4 md:grid-cols-4">
         <Card className="border-0 shadow-sm">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-medium tracking-widest text-zinc-500 uppercase">Total Kamar</p>
+            <p className="text-xs font-medium tracking-widest text-zinc-500 uppercase">{t("dash.total_kost")}</p>
             <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#f5f0ff] text-[#8550e6]">🏠</span>
           </div>
           <p className="mt-3 text-3xl font-bold">{total}</p>
@@ -141,7 +144,7 @@ export default function DashboardPage() {
         </Card>
         <Card className="border-0 shadow-sm">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-medium tracking-widest text-zinc-500 uppercase">Okupansi</p>
+            <p className="text-xs font-medium tracking-widest text-zinc-500 uppercase">{t("c.nonaktif") === "Inactive" ? "Occupancy" : "Okupansi"}</p>
             <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">📈</span>
           </div>
           <p className="mt-3 text-3xl font-bold">{occupancy.toFixed(1)}%</p>
@@ -156,7 +159,7 @@ export default function DashboardPage() {
           <Link href="/dashboard/bookings" className="text-xs font-medium text-[#8550e6] hover:underline">Lihat inbox →</Link>
         </Card>
         <Card className="border-0 bg-zinc-900 text-white">
-          <p className="text-xs font-medium tracking-widest text-zinc-400 uppercase">Kontrak Aktif</p>
+          <p className="text-xs font-medium tracking-widest text-zinc-400 uppercase">{t("dash.kontrak_aktif")}</p>
           <p className="mt-3 text-3xl font-bold">{active}</p>
           <p className="text-xs text-zinc-400">Sewa berjalan</p>
         </Card>
@@ -209,11 +212,11 @@ export default function DashboardPage() {
       {/* Recent */}
       <Card className="border-0 shadow-sm">
         <div className="flex items-center justify-between">
-          <h3 className="font-semibold">Booking Terbaru</h3>
-          <Link href="/dashboard/bookings" className="text-xs font-medium text-[#8550e6] hover:underline">Lihat semua</Link>
+          <h3 className="font-semibold">{t("nav.bookings")}</h3>
+          <Link href="/dashboard/bookings" className="text-xs font-medium text-[#8550e6] hover:underline">{t("c.lihat")}</Link>
         </div>
         {!recentBookings?.items?.length ? (
-          <p className="mt-4 text-sm text-zinc-500">Belum ada booking</p>
+          <p className="mt-4 text-sm text-zinc-500">{t("bk.kosong_pending")}</p>
         ) : (
           <div className="mt-4 divide-y">
             {(recentBookings.items as any[]).slice(0, 5).map((b: any) => (

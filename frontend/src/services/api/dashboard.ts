@@ -1,5 +1,5 @@
 import api from "./client";
-import type { Kost, Paginated, Room, Booking, Contract, User } from "./types";
+import type { Kost, Paginated, Room, Booking, Contract, User, Notification } from "./types";
 
 export const dashboardApi = {
   // stats
@@ -35,10 +35,12 @@ export const dashboardApi = {
   // admin kosts CRUD
   listAdminKosts: (params?: Record<string, unknown>) =>
     api.get<{ data: Paginated<Kost> }>("/admin/kosts", { params }).then((r) => r.data.data),
+  createAdminKost: (body: Partial<Kost>) => api.post("/admin/kosts", body).then((r) => r.data),
   verifyKost: (id: string) => api.patch(`/admin/kosts/${id}/verify`).then((r) => r.data),
   rejectKost: (id: string, note: string) => api.patch(`/admin/kosts/${id}/reject`, { note }).then((r) => r.data),
   updateAdminKost: (id: string, body: Partial<Kost>) => api.patch(`/admin/kosts/${id}`, body).then((r) => r.data),
   deleteAdminKost: (id: string) => api.delete(`/admin/kosts/${id}`).then((r) => r.data),
+  toggleKostActive: (id: string, is_active: boolean) => api.patch(`/admin/kosts/${id}/active`, { is_active }).then((r) => r.data),
 
   // admin users CRUD
   listUsers: (params?: Record<string, unknown>) =>
@@ -57,4 +59,14 @@ export const dashboardApi = {
       headers: { "Content-Type": "multipart/form-data" },
     }).then((r) => r.data.data.url);
   },
+
+  // profile
+  updateProfile: (body: { name?: string; phone?: string }) =>
+    api.patch("/users/me", body).then((r) => r.data),
+
+  // notifications
+  listNotifications: () =>
+    api.get<{ data: { items: Notification[]; unread: number } }>("/notifications", { params: { limit: 30 } }).then((r) => r.data.data),
+  markNotificationRead: (id: string) =>
+    api.patch(`/notifications/${id}/read`).then((r) => r.data),
 };

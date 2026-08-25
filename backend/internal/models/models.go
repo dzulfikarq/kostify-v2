@@ -66,16 +66,22 @@ const (
 )
 
 type Kost struct {
-	ID            uuid.UUID  `gorm:"type:uuid;default:gen_random_uuid()" json:"id"`
-	OwnerID       uuid.UUID  `gorm:"type:uuid;not null" json:"owner_id"`
-	Owner         User       `gorm:"foreignKey:OwnerID" json:"owner,omitempty"`
-	Name          string     `gorm:"size:150;not null" json:"name"`
-	Description   string     `gorm:"type:text;not null;default:''" json:"description"`
-	Address       string     `gorm:"size:500;not null;default:''" json:"address"`
-	City          string     `gorm:"size:100;not null" json:"city"`
-	Gender        KostGender `gorm:"type:kost_gender;not null;default:'campur'" json:"gender"`
-	Status        KostStatus `gorm:"type:kost_status;not null;default:'pending'" json:"status"`
-	RejectionNote *string    `gorm:"type:text" json:"rejection_note,omitempty"`
+	ID            uuid.UUID      `gorm:"type:uuid;default:gen_random_uuid()" json:"id"`
+	OwnerID       uuid.UUID      `gorm:"type:uuid;not null" json:"owner_id"`
+	Owner         User           `gorm:"foreignKey:OwnerID" json:"owner,omitempty"`
+	Name          string         `gorm:"size:150;not null" json:"name"`
+	Description   string         `gorm:"type:text;not null;default:''" json:"description"`
+	Address       string         `gorm:"size:500;not null;default:''" json:"address"`
+	City          string         `gorm:"size:100;not null" json:"city"`
+	Province      *string        `gorm:"size:100" json:"province,omitempty"`
+	Regency       *string        `gorm:"size:100" json:"regency,omitempty"`
+	District      *string        `gorm:"size:100" json:"district,omitempty"`
+	Village       *string        `gorm:"size:100" json:"village,omitempty"`
+	PostalCode    *string        `gorm:"size:10" json:"postal_code,omitempty"`
+	Gender        KostGender     `gorm:"type:kost_gender;not null;default:'campur'" json:"gender"`
+	Status        KostStatus     `gorm:"type:kost_status;not null;default:'pending'" json:"status"`
+	IsActive      bool           `gorm:"not null;default:true" json:"is_active"`
+	RejectionNote *string        `gorm:"type:text" json:"rejection_note,omitempty"`
 	Photos        pq.StringArray `gorm:"type:text[];default:'{}'" json:"photos"`
 	Facilities    pq.StringArray `gorm:"type:text[];default:'{}'" json:"facilities"`
 	VerifiedAt    *time.Time     `json:"verified_at,omitempty"`
@@ -91,6 +97,7 @@ type Room struct {
 	Kost         Kost          `gorm:"foreignKey:KostID" json:"-"`
 	RoomNumber   string        `gorm:"size:20;not null" json:"room_number"`
 	PriceMonthly float64       `gorm:"type:numeric(12,2);not null" json:"price_monthly"`
+	Luas         float64       `gorm:"type:numeric(6,2);not null;default:0" json:"luas"`
 	Status       RoomStatus    `gorm:"type:room_status;not null;default:'available'" json:"status"`
 	Photos       pq.StringArray `gorm:"type:text[];default:'{}'" json:"photos"`
 	Facilities   pq.StringArray `gorm:"type:text[];default:'{}'" json:"facilities"`
@@ -152,3 +159,16 @@ type Contract struct {
 }
 
 func (Contract) TableName() string { return "contracts" }
+
+type Notification struct {
+	ID        uuid.UUID `gorm:"type:uuid;default:gen_random_uuid()" json:"id"`
+	UserID    uuid.UUID `gorm:"type:uuid;not null" json:"user_id"`
+	Title     string    `gorm:"size:200;not null" json:"title"`
+	Body      string    `gorm:"type:text;not null;default:''" json:"body"`
+	Link      string    `gorm:"size:300;not null;default:''" json:"link"`
+	IsRead    bool      `gorm:"not null;default:false" json:"is_read"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+func (Notification) TableName() string { return "notifications" }

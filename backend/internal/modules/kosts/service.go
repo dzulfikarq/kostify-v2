@@ -12,13 +12,20 @@ import (
 
 	"kostify/backend/internal/http/response"
 	"kostify/backend/internal/models"
+	"kostify/backend/internal/modules/notifications"
 )
 
 type Service struct {
-	repo *Repository
+	repo   *Repository
+	notify notifications.Notifier
 }
 
-func NewService(repo *Repository) *Service { return &Service{repo: repo} }
+func NewService(repo *Repository, notify notifications.Notifier) *Service {
+	if notify == nil {
+		notify = func(context.Context, uuid.UUID, string, string, string) {}
+	}
+	return &Service{repo: repo, notify: notify}
+}
 
 // Kost
 
@@ -38,6 +45,22 @@ func (s *Service) CreateKost(ctx context.Context, ownerID uuid.UUID, in KostCrea
 		Photos:      pq.StringArray(in.Photos),
 		Facilities:  pq.StringArray(in.Facilities),
 	}
+	if in.Province != "" {
+		k.Province = &in.Province
+		k.City = strings.TrimSpace(in.City)
+	}
+	if in.Regency != "" {
+		k.Regency = &in.Regency
+	}
+	if in.District != "" {
+		k.District = &in.District
+	}
+	if in.Village != "" {
+		k.Village = &in.Village
+	}
+	if in.PostalCode != "" {
+		k.PostalCode = &in.PostalCode
+	}
 	if k.Photos == nil {
 		k.Photos = pq.StringArray{}
 	}
@@ -50,7 +73,7 @@ func (s *Service) CreateKost(ctx context.Context, ownerID uuid.UUID, in KostCrea
 	return k, nil
 }
 
-func (s *Service) GetPublicKost(ctx context.Context, id uuid.UUID) (*models.Kost, []models.Room, error) {
+func (s *Service) GetPublicKost(ctx context.Context, id uuid.UUID, viewer *models.User) (*models.Kost, []models.Room, error) {
 	k, err := s.repo.GetKostByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -59,7 +82,14 @@ func (s *Service) GetPublicKost(ctx context.Context, id uuid.UUID) (*models.Kost
 		return nil, nil, response.ErrInternal
 	}
 	if k.Status != models.KostVerified {
-		return nil, nil, response.ErrNotFound
+		// ponytail: pending/rejected kosts visible only to their owner & admin
+		if viewer == nil || (viewer.Role != models.RoleSuperAdmin && viewer.ID != k.OwnerID) {
+			return nil, nil, response.ErrNotFound
+		}
+	} else if !k.IsActive {
+		if viewer == nil || (viewer.Role != models.RoleSuperAdmin && viewer.ID != k.OwnerID) {
+			return nil, nil, response.ErrNotFound
+		}
 	}
 	rooms, err := s.repo.ListRoomsByKost(ctx, k.ID)
 	if err != nil {
@@ -136,6 +166,21 @@ func (s *Service) UpdateKost(ctx context.Context, ownerID, kostID uuid.UUID, in 
 	if in.Facilities != nil {
 		k.Facilities = pq.StringArray(*in.Facilities)
 	}
+	if in.Province != nil {
+		k.Province = in.Province
+	}
+	if in.Regency != nil {
+		k.Regency = in.Regency
+	}
+	if in.District != nil {
+		k.District = in.District
+	}
+	if in.Village != nil {
+		k.Village = in.Village
+	}
+	if in.PostalCode != nil {
+		k.PostalCode = in.PostalCode
+	}
 	if err := s.repo.UpdateKost(ctx, k); err != nil {
 		return nil, response.ErrInternal
 	}
@@ -166,6 +211,9 @@ func (s *Service) CreateRoom(ctx context.Context, ownerID, kostID uuid.UUID, in 
 		Status:       status,
 		Photos:       pq.StringArray(in.Photos),
 		Facilities:   pq.StringArray(in.Facilities),
+	}
+	if in.Luas != nil {
+		rm.Luas = *in.Luas
 	}
 	if rm.Photos == nil {
 		rm.Photos = pq.StringArray{}
@@ -209,6 +257,12 @@ func (s *Service) UpdateRoom(ctx context.Context, ownerID, roomID uuid.UUID, in 
 			return nil, response.ErrValidation([]response.ErrorDetail{{Field: "price_monthly", Message: "must be > 0"}})
 		}
 		rm.PriceMonthly = *in.PriceMonthly
+	}
+	if in.Luas != nil {
+		if *in.Luas < 0 || *in.Luas > 10000 {
+			return nil, response.ErrValidation([]response.ErrorDetail{{Field: "luas", Message: "must be 0-10000 m2"}})
+		}
+		rm.Luas = *in.Luas
 	}
 	if in.Photos != nil {
 		rm.Photos = pq.StringArray(*in.Photos)
@@ -308,6 +362,7 @@ func (s *Service) VerifyKost(ctx context.Context, kostID uuid.UUID) (*models.Kos
 	if err := s.repo.UpdateKost(ctx, k); err != nil {
 		return nil, response.ErrInternal
 	}
+	s.notify(ctx, k.OwnerID, "Kost diverifikasi", `"`+k.Name+`" telah diverifikasi dan kini tayang di pencarian publik.`, "/dashboard/kosts")
 	return k, nil
 }
 
@@ -325,6 +380,7 @@ func (s *Service) RejectKost(ctx context.Context, kostID uuid.UUID, note string)
 	if err := s.repo.UpdateKost(ctx, k); err != nil {
 		return nil, response.ErrInternal
 	}
+	s.notify(ctx, k.OwnerID, "Kost ditolak", `"`+k.Name+`" ditolak admin. Alasan: `+note, "/dashboard/kosts")
 	return k, nil
 }
 
@@ -385,4 +441,65 @@ func (s *Service) AdminDeleteKost(ctx context.Context, kostID uuid.UUID) error {
 		return response.ErrInternal
 	}
 	return s.repo.DeleteKost(ctx, kostID)
+}
+
+func (s *Service) AdminCreateKost(ctx context.Context, adminID uuid.UUID, in KostCreateInput) (*models.Kost, error) {
+	gender := models.GenderCampur
+	if in.Gender != "" {
+		gender = models.KostGender(in.Gender)
+	}
+	k := &models.Kost{
+		OwnerID:     adminID,
+		Name:        strings.TrimSpace(in.Name),
+		Description: strings.TrimSpace(in.Description),
+		Address:     strings.TrimSpace(in.Address),
+		City:        strings.TrimSpace(in.City),
+		Gender:      gender,
+		Status:      models.KostVerified,
+		IsActive:    true,
+		Photos:      pq.StringArray(in.Photos),
+		Facilities:  pq.StringArray(in.Facilities),
+	}
+	if in.Province != "" {
+		k.Province = &in.Province
+	}
+	if in.Regency != "" {
+		k.Regency = &in.Regency
+	}
+	if in.District != "" {
+		k.District = &in.District
+	}
+	if in.Village != "" {
+		k.Village = &in.Village
+	}
+	if in.PostalCode != "" {
+		k.PostalCode = &in.PostalCode
+	}
+	if k.Photos == nil {
+		k.Photos = pq.StringArray{}
+	}
+	if k.Facilities == nil {
+		k.Facilities = pq.StringArray{}
+	}
+	now := time.Now()
+	k.VerifiedAt = &now
+	if err := s.repo.CreateKost(ctx, k); err != nil {
+		return nil, response.ErrInternal
+	}
+	return k, nil
+}
+
+func (s *Service) ToggleKostActive(ctx context.Context, kostID uuid.UUID, isActive bool) (*models.Kost, error) {
+	k, err := s.repo.GetKostByID(ctx, kostID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, response.ErrNotFound
+		}
+		return nil, response.ErrInternal
+	}
+	k.IsActive = isActive
+	if err := s.repo.UpdateKost(ctx, k); err != nil {
+		return nil, response.ErrInternal
+	}
+	return k, nil
 }

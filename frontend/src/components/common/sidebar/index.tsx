@@ -7,8 +7,8 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import type { Key } from 'react-aria-components';
-import { NAV_DATA } from './data';
-import { CloseIcon, SidebarExpandedIcon, ThreeDots } from './icon';
+import { useLang } from '@/i18n';
+import { getNavData } from './data';import { CloseIcon, SidebarExpandedIcon, ThreeDots } from './icon';
 import NavItem from './nav-item';
 import { findActiveGroupKey } from './utils';
 
@@ -26,15 +26,16 @@ export default function Sidebar({
     const pathname = usePathname();
     const { data: user } = useMe();
     const role = user?.role as string | undefined;
+    const { t } = useLang();
 
     const filteredNav = useMemo(() => {
-        return NAV_DATA.map((section) => ({
+        return getNavData(t).map((section) => ({
             ...section,
             items: (section.items as unknown as Array<{ title: string; icon: React.ReactNode; url: string; items: unknown[]; roles?: readonly string[] }>).filter(
                 (item) => !item.roles || (role && (item.roles as readonly string[]).includes(role))
             ),
         })).filter((section) => section.items.length > 0);
-    }, [role]);
+    }, [role, t]);
 
     // Compute which group should be open based on the current route
     const activeGroupKey = useMemo(

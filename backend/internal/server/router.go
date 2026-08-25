@@ -15,6 +15,7 @@ import (
 	"kostify/backend/internal/modules/auth"
 	"kostify/backend/internal/modules/bookings"
 	"kostify/backend/internal/modules/kosts"
+	"kostify/backend/internal/modules/notifications"
 	"kostify/backend/internal/modules/uploads"
 	"kostify/backend/internal/modules/users"
 	mclient "kostify/backend/internal/platform/minio"
@@ -48,7 +49,7 @@ func NewRouter(deps Deps) *gin.Engine {
 	authH := auth.NewHandler(authSvc, deps.Cfg)
 
 	kostRepo := kosts.NewRepository(deps.DB)
-	kostSvc := kosts.NewService(kostRepo)
+	kostSvc := kosts.NewService(kostRepo, notifications.NewNotifier(deps.DB))
 	kostH := kosts.NewHandler(kostSvc)
 
 	uploadH := uploads.NewHandler(deps.Storage)
@@ -58,12 +59,21 @@ func NewRouter(deps Deps) *gin.Engine {
 	usersH := users.NewHandler(usersSvc)
 
 	bookingRepo := bookings.NewRepository(deps.DB, deps.Cfg)
-	bookingSvc := bookings.NewService(bookingRepo)
+	bookingSvc := bookings.NewService(bookingRepo, notifications.NewNotifier(deps.DB))
 	bookingH := bookings.NewHandler(bookingSvc)
+
+	notifH := notifications.NewHandler(deps.DB)
+
+	authSecret := func() string {
+		if deps.Cfg.JWTAccessSecret != "" {
+			return deps.Cfg.JWTAccessSecret
+		}
+		return "dev-access-secret-change-in-production-0123456789"
+	}
 
 	// Public
 	v1.GET("/kosts", kostH.ListPublic)
-	v1.GET("/kosts/:id", kostH.GetPublic)
+	v1.GET("/kosts/:id", middleware.OptionalAuth(deps.DB, authSecret), kostH.GetPublic)
 	v1.GET("/auth/csrf", authH.CSRF)
 	v1.POST("/auth/register", middleware.RateLimit(deps.RDB, "rl:auth:register", 10, time.Minute), authH.Register)
 	v1.POST("/auth/login", middleware.RateLimit(deps.RDB, "rl:auth:login", 10, time.Minute), authH.Login)
@@ -80,6 +90,11 @@ func NewRouter(deps Deps) *gin.Engine {
 
 	v1.POST("/auth/logout", authH.Logout)
 	v1.GET("/auth/me", requireAuth(deps), authH.Me)
+
+	// Profile (any authenticated role) & notifications
+	v1.PATCH("/users/me", requireAuth(deps), usersH.UpdateMe)
+	v1.GET("/notifications", requireAuth(deps), notifH.List)
+	v1.PATCH("/notifications/:id/read", requireAuth(deps), notifH.MarkRead)
 
 	// Tenant bookings & contracts
 	v1.POST("/bookings", requireAuth(deps), middleware.RequireRoles(models.RoleTenant), bookingH.Create)
@@ -113,7 +128,9 @@ func NewRouter(deps Deps) *gin.Engine {
 	admin.Use(requireAuth(deps), middleware.RequireRoles(models.RoleSuperAdmin))
 	{
 			admin.GET("/kosts", kostH.ListAdmin)
+		admin.POST("/kosts", kostH.AdminCreateKost)
 		admin.PATCH("/kosts/:id", kostH.AdminUpdateKost)
+		admin.PATCH("/kosts/:id/active", kostH.ToggleKostActive)
 		admin.DELETE("/kosts/:id", kostH.AdminDeleteKost)
 		admin.PATCH("/kosts/:id/verify", kostH.VerifyKost)
 		admin.PATCH("/kosts/:id/reject", kostH.RejectKost)

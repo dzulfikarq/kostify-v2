@@ -8,10 +8,15 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { TableRoot, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/tailgrids/core/table";
-import { toast } from "sonner";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { UserDetailModal } from "@/components/ui/user-detail-modal";
+import { formatDateTime } from "@/utils/date";
+import { useLang } from '@/i18n';
+import { toast } from 'sonner';
 import { useState } from "react";
 
 export default function UsersPage() {
+  const { t } = useLang();
   const { data: me } = useMe();
   const [search, setSearch] = useState("");
   const [showCreate, setShowCreate] = useState(false);
@@ -34,6 +39,9 @@ export default function UsersPage() {
     },
     onError: (e: any) => toast.error(e.response?.data?.error?.message || e.response?.data?.error?.details?.[0]?.message || "Gagal buat user"),
   });
+
+  const [confirmDialog, setConfirmDialog] = useState<null | { title: string; desc: string; action: () => void; tone?: "violet" | "red" }>(null);
+  const [detailUser, setDetailUser] = useState<any | null>(null);
 
   const updateMut = useMutation({
     mutationFn: ({ id, body }: { id: string; body: any }) => dashboardApi.updateUser(id, body),
@@ -59,18 +67,18 @@ export default function UsersPage() {
     <div className="space-y-5 p-2 lg:p-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Kelola Users</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{t("us.judul")}</h1>
           <p className="text-sm text-zinc-500">CRUD user — semua aksi butuh konfirmasi</p>
         </div>
-        <Button onClick={() => setShowCreate((v) => !v)} className="shadow-sm">+ Buat User</Button>
+        <Button onClick={() => setShowCreate((v) => !v)} className="shadow-sm">{t("us.buat")}</Button>
       </div>
 
       {showCreate && (
         <Card className="border-0 shadow-sm space-y-3">
-          <h3 className="font-semibold">Buat User Baru</h3>
+          <h3 className="font-semibold">{t("us.buat")}</h3>
           <div className="grid gap-3 md:grid-cols-2">
-            <Input label="Nama *" value={form.name} onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))} placeholder="Nama lengkap" />
-            <Input label="Email *" value={form.email} onChange={(e) => setForm((s) => ({ ...s, email: e.target.value }))} placeholder="email@test.local" />
+            <Input label={t("pf.nama")} value={form.name} onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))} placeholder="Nama lengkap" />
+            <Input label="Email" value={form.email} onChange={(e) => setForm((s) => ({ ...s, email: e.target.value }))} placeholder="email@test.local" />
             <Input label="Password *" type="password" value={form.password} onChange={(e) => setForm((s) => ({ ...s, password: e.target.value }))} placeholder="Min 8 karakter" />
             <label className="block space-y-1.5">
               <span className="text-sm font-medium">Role</span>
@@ -84,19 +92,19 @@ export default function UsersPage() {
           </div>
           <div className="flex gap-2">
             <Button variant="outline" className="flex-1" onClick={() => setShowCreate(false)}>Batal</Button>
-            <Button className="flex-1 shadow-sm" disabled={createMut.isPending} onClick={() => { if (!confirm(`Buat user ${form.email} sebagai ${form.role}?`)) return; createMut.mutate(); }}>{createMut.isPending ? "Membuat..." : "Buat User"}</Button>
+            <Button className="flex-1 shadow-sm" disabled={createMut.isPending} onClick={() => setConfirmDialog({ title: t("us.cd_buat"), desc: form.role, tone: "violet", action: () => { createMut.mutate(); setConfirmDialog(null); } })}>{t("us.buat")}</Button>
           </div>
         </Card>
       )}
 
       <Card className="p-4">
-        <Input placeholder="Cari nama / email..." value={search} onChange={(e) => setSearch(e.target.value)} />
+        <Input placeholder={t('us.cari_ph')} value={search} onChange={(e) => setSearch(e.target.value)} />
       </Card>
 
       {isLoading ? (
         <Card className="p-0 overflow-hidden"><Skeleton className="h-64" /></Card>
       ) : !data?.items?.length ? (
-        <Card className="py-12 text-center text-sm text-zinc-500">Tidak ada user</Card>
+        <Card className="py-12 text-center text-sm text-zinc-500">{t("us.kosong")}</Card>
       ) : (
         <Card className="p-0 overflow-hidden border-0 shadow-sm">
           <TableRoot>
@@ -112,16 +120,16 @@ export default function UsersPage() {
               {data.items.map((u: any) => (
                 <TableRow key={u.id} className="hover:bg-[#f5f0ff]/30">
                   <TableCell>
-                    <div className="flex items-center gap-3">
+                    <button className="flex items-center gap-3 text-left hover:opacity-80" onClick={() => setDetailUser(u)}>
                       <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[#8550e6] to-[#4f46e5] text-xs font-bold text-white">{u.name.charAt(0).toUpperCase()}</div>
                       <div>
-                        <p className="text-sm font-medium">{u.name}</p>
+                        <p className="text-sm font-medium underline-offset-2 hover:underline">{u.name}</p>
                         <p className="text-xs text-zinc-500">{u.email}</p>
                       </div>
-                    </div>
+                    </button>
                   </TableCell>
                   <TableCell>
-                    <select value={u.role} onChange={(e) => { const v = e.target.value; if (!confirm(`Ubah role ${u.email} menjadi ${v}?`)) { e.target.value = u.role; return; } updateMut.mutate({ id: u.id, body: { role: v } }); }} className="rounded-full border border-zinc-200 bg-white px-2.5 py-1 text-xs font-medium outline-none focus:border-[#8550e6]">
+                    <select value={u.role} onChange={(e) => { const v = e.target.value; if (v === u.role) return; setConfirmDialog({ title: t("us.cd_role"), desc: v, tone: "violet", action: () => { updateMut.mutate({ id: u.id, body: { role: v } }); setConfirmDialog(null); } }); }} className="rounded-full border border-zinc-200 bg-white px-2.5 py-1 text-xs font-medium outline-none focus:border-[#8550e6]">
                       <option value="tenant">tenant</option>
                       <option value="owner">owner</option>
                       <option value="super_admin">super_admin</option>
@@ -130,8 +138,8 @@ export default function UsersPage() {
                   <TableCell><Badge tone={u.is_active ? "green" : "red"}>{u.is_active ? "Aktif" : "Nonaktif"}</Badge></TableCell>
                   <TableCell>
                     <div className="flex justify-end gap-1.5">
-                      <Button variant="outline" size="sm" onClick={() => { if (!confirm(`${u.is_active ? "Nonaktifkan" : "Aktifkan"} user ${u.email}?`)) return; updateMut.mutate({ id: u.id, body: { is_active: !u.is_active } }); }}>{u.is_active ? "Nonaktifkan" : "Aktifkan"}</Button>
-                      <Button variant="outline" size="sm" onClick={() => { if (!confirm(`Hapus user ${u.email}? Tidak bisa dibatalkan!`)) return; deleteMut.mutate(u.id); }} className="text-red-600 hover:bg-red-50">Hapus</Button>
+                      <Button variant="outline" size="sm" onClick={() => setConfirmDialog({ title: u.is_active ? t("us.cd_toggle_off") : t("us.cd_toggle_on"), desc: u.email, tone: u.is_active ? "red" : "violet", action: () => { updateMut.mutate({ id: u.id, body: { is_active: !u.is_active } }); setConfirmDialog(null); } })}>{u.is_active ? "Nonaktifkan" : "Aktifkan"}</Button>
+                      <Button variant="outline" size="sm" onClick={() => setConfirmDialog({ title: t("us.cd_hapus"), desc: t("us.cd_hapus_desc"), tone: "red", action: () => { deleteMut.mutate(u.id); setConfirmDialog(null); } })} className="text-red-600 hover:bg-red-50">Hapus</Button>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -140,6 +148,10 @@ export default function UsersPage() {
           </TableRoot>
         </Card>
       )}
+
+      <UserDetailModal user={detailUser} onClose={() => setDetailUser(null)} />
+
+      <ConfirmDialog open={!!confirmDialog} title={confirmDialog?.title || ""} description={confirmDialog?.desc} tone={confirmDialog?.tone} confirmText={t("c.konfirmasi")} onConfirm={() => confirmDialog?.action()} onCancel={() => { setConfirmDialog(null); qc.invalidateQueries({ queryKey: ["admin-users"] }); }} />
     </div>
   );
 }

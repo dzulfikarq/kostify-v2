@@ -1,6 +1,8 @@
 import axios from "axios";
 import { toast } from "sonner";
 
+// Same-origin relative path; next.config.ts rewrites proxy /api/v1 to the Go
+// API. Browser never talks cross-origin -> no CORS needed.
 const api = axios.create({
   baseURL: "/api/v1",
   withCredentials: true,
@@ -41,7 +43,7 @@ api.interceptors.response.use(
     const status = error.response?.status;
     const original = error.config as (typeof error.config & { _retry?: boolean });
 
-    // 401 — try refresh once, single-flight
+    // 401 ?" try refresh once, single-flight
     if (status === 401 && !original?._retry) {
       const url: string = original?.url || "";
       // Never retry auth endpoints themselves (avoid loop) and me check (public pages)

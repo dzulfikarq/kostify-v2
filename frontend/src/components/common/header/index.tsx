@@ -7,6 +7,7 @@ import { ThreeDots } from "@/components/common/sidebar/icon";
 import { cn } from "@/utils/cn";
 import { LogoWithText } from "@/utils/icon";
 import React from "react";
+import { LangToggle } from "@/i18n";
 import { NotificationsButton } from "./notifications";
 import SearchBar from "./searchbar";
 
@@ -63,6 +64,7 @@ export default function Header({ onMenuClick }: { onMenuClick?: () => void }) {
 
           {/* Right Side - Actions */}
           <div className="flex items-center gap-2.5">
+            <LangToggle />
             <ThemeToggle />
             <NotificationsButton />
             <UserProfileButton />
@@ -84,6 +86,7 @@ function MobileInfoDrawer({ isOpen }: { isOpen: boolean }) {
         <div className="flex items-center justify-between gap-2.5">
           <div className="flex items-center gap-2.5">
             <NotificationsButton />
+            <LangToggle />
             <ThemeToggle />
             <SearchBar />
           </div>

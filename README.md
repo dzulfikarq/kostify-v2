@@ -30,11 +30,11 @@ Marketplace booking kost tanpa pembayaran online. Penyewa mencari kost terverifi
 | **Super Admin** | Verifikasi kost baru, kelola user |
 
 ## Fitur
-- **Publik**: landing + search, daftar kost filter/sort/pagination, detail + daftar kamar + booking, register/login
+- **Publik**: landing page (hero search, kategori, kost terbaru, CTA), daftar kost filter/sort/pagination, detail kost + daftar kamar + booking, detail kamar (galeri foto), register/login — semua dengan design system Kostara & dwibahasa ID/EN
 - **Tenant**: booking kamar (1 pending per kamar — partial unique index), batal pending, riwayat booking & kontrak
 - **Owner CMS**: analytics (okupansi, pending, revenue), CRUD kost/kamar + upload foto MinIO, inbox booking (approve/reject), kelola kontrak, akhiri sewa
-- **Super Admin**: verifikasi kost (pending→verified/rejected), kelola user (nonaktifkan/ubah role)
-- **Bonus**: MinIO S3, expiry worker (pending→expired otomatis 72h), Redis rate-limit & cache, Docker Compose
+- **Super Admin**: verifikasi kost (pending→verified/rejected, alasan tolak via dialog), master semua kost (edit/hapus/toggle aktif), kelola user (nonaktifkan/ubah role)
+- **Bonus**: MinIO S3, expiry worker (pending→expired otomatis 72h), Redis rate-limit & cache, Docker Compose, notifikasi in-app (bell + polling)
 
 ### Business Flow
 ```
@@ -48,7 +48,7 @@ Contract: active → ended
 | Lapisan | Stack |
 |---------|-------|
 | Backend | Go 1.26, Gin, GORM, PostgreSQL 16, golang-migrate (embed), JWT (access 15m + refresh 7d rotation), bcrypt, Redis 7, MinIO |
-| Frontend | Next.js 16 (App Router), React 19, TypeScript, Tailwind v4, TanStack Query/Table, Axios, Sonner, Recharts |
+| Frontend | Next.js 16 (App Router), React 19, TypeScript, Tailwind v4, TanStack Query/Table, Axios, Sonner, Recharts, @tailgrids/icons, i18n ID/EN custom (`src/i18n.tsx`) |
 | Infra | Docker Compose (api, frontend, db, redis, minio), Makefile |
 
 ## Arsitektur
@@ -63,21 +63,32 @@ flowchart LR
   BE --> WRK[Worker ticker expiry]
 ```
 
-- **Cookie-based auth** (HttpOnly, Secure, SameSite=Lax, Path, Max-Age) + **CSRF double-submit** (`csrf_token` cookie + `X-CSRF-Token` header). Same-origin via Next.js rewrites → bebas CORS.
+- **Cookie-based auth** (HttpOnly, Secure, SameSite=Lax, Path, Max-Age) + **CSRF double-submit** (`csrf_token` cookie + `X-CSRF-Token` header). Same-origin via Next.js rewrites (`/api/v1` → `API_INTERNAL_URL`) → bebas CORS; axios client pakai baseURL relatif `/api/v1`.
 - **Refresh rotation** + reuse detection → revoke-all jika refresh lama dipakai ulang (tanda theft).
 - **Layered** `handler→service→repo` per modul (`auth`, `kosts`, `bookings`, `users`, `uploads`, `platform/*`).
 - **Migrasi SQL mentah** (`000001_init`) reproducible dari DB kosong, `make migrate-up/down`.
+
+## Design System (Kostara)
+
+Halaman publik memakai design system **Kostara** di `frontend/src/app/css/kostara.css`:
+
+- **Font**: Rubik via `next/font/google` (variable `--font-rubik`), dipakai untuk display & body.
+- **Warna**: ink `#251B3D`, paper `#F3F0EA`, amber/brand `#8550E6`, green `#4C8264` — CSS custom properties.
+- **Komponen**: `.card`, `.tag`, `.chip`, `.badge-verified`, `.btn-primary/outline/ghost`, `.search-card`, `.step`, `.cta-banner`, grid responsif `.grid-3/.grid-4`, `.detail-grid`.
+- **Icon**: `@tailgrids/icons` (SVG React components) — tanpa emoji.
+- **Halaman publik**: header sticky + mobile menu, hero gradient dengan search bar, kategori, listing kost, footer simple.
 
 ## Desain Database
 
 Lihat `docs/product-foundation.md` untuk ERD lengkap. Inti:
 
 - `users` — role enum `super_admin|owner|tenant`, email unique
-- `kosts` — `owner_id→users`, `gender` enum, `status` pending/verified/rejected, `photos/facilities text[]`, GIN index
-- `rooms` — `kost_id→kosts`, `unique(kost_id, room_number)`, `status` enum, GIN
+- `kosts` — `owner_id→users`, `gender` enum, `status` pending/verified/rejected, `is_active`, `photos/facilities text[]`, GIN index
+- `rooms` — `kost_id→kosts`, `unique(kost_id, room_number)`, `status` enum, `luas`, GIN
 - `bookings` — `room_id→rooms`, `tenant_id→users`, `status` enum, `expires_at`, **partial unique `room_id WHERE status='pending'`** (anti race), `idx expires_at WHERE pending`
 - `contracts` — `booking_id unique→bookings`, `room_id`, `tenant_id`, `start_date/end_date`, `status` active/ended
 - `sessions` — `refresh_token_hash unique`, `expires_at`, `revoked_at`
+- `notifications` — `user_id→users`, `title/body/link`, `is_read`, index `(user_id, is_read, created_at DESC)`
 
 `text[]` disimpan sebagai `pq.StringArray` (GORM) agar `{"wifi","ac"}` valid Postgres; jika butuh metadata fasilitas dinamis, pecah jadi pivot.
 
@@ -121,6 +132,21 @@ make migrate-version # cek versi
 Migrasi embed di binary (`backend/migrations/*.sql` + `migrations.go`), dijalankan dari DB kosong secara reproducible.
 
 Seed super admin otomatis saat api start (`ADMIN_EMAIL`).
+
+## Data Dummy & Akun Test
+
+Seed data demo (20 owner, 20 kost, 80 kamar) tersedia di `db/seed_*.sql`:
+
+```bash
+docker cp db/seed_kosts.sql kostify-v2-db-1:/tmp/ && docker exec kostify-v2-db-1 psql -U kostify -d kostify -f /tmp/seed_kosts.sql
+docker cp db/seed_rooms.sql kostify-v2-db-1:/tmp/ && docker exec kostify-v2-db-1 psql -U kostify -d kostify -f /tmp/seed_rooms.sql
+```
+
+| Role | Email | Password |
+|------|-------|----------|
+| Super Admin | `admin@kostify.local` | `Admin123!` |
+| Owner (20 akun dummy) | `budi.santoso@example.com` dll (lihat `db/seed_kosts.sql`) | `Owner123!` |
+| Tenant | daftar sendiri via `/register` | — |
 
 ## Menjalankan Aplikasi
 

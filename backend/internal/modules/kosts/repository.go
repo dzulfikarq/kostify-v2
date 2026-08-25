@@ -42,7 +42,7 @@ func (r *Repository) ListKosts(ctx context.Context, q ListQuery, ownerID *uuid.U
 	db := r.db.WithContext(ctx).Model(&models.Kost{})
 
 	if verifiedOnly {
-		db = db.Where("kosts.status = ?", models.KostVerified)
+		db = db.Where("kosts.status = ? AND kosts.is_active = ?", models.KostVerified, true)
 	} else if q.Status != "" {
 		db = db.Where("kosts.status = ?", q.Status)
 	}

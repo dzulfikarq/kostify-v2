@@ -11,13 +11,20 @@ import (
 
 	"kostify/backend/internal/http/response"
 	"kostify/backend/internal/models"
+	"kostify/backend/internal/modules/notifications"
 )
 
 type Service struct {
-	repo *Repository
+	repo   *Repository
+	notify notifications.Notifier
 }
 
-func NewService(repo *Repository) *Service { return &Service{repo: repo} }
+func NewService(repo *Repository, notify notifications.Notifier) *Service {
+	if notify == nil {
+		notify = func(context.Context, uuid.UUID, string, string, string) {}
+	}
+	return &Service{repo: repo, notify: notify}
+}
 
 func (s *Service) Create(ctx context.Context, tenantID, roomID uuid.UUID) (*models.Booking, error) {
 	booking, err := s.repo.CreateBookingTx(ctx, tenantID, roomID)
@@ -43,6 +50,14 @@ func (s *Service) Create(ctx context.Context, tenantID, roomID uuid.UUID) (*mode
 			return nil, response.ErrConflict("Room is not available")
 		}
 		return nil, response.ErrInternal
+	}
+	// Notify the kost owner about the new booking request.
+	var room models.Room
+	if err := s.repo.db.WithContext(ctx).First(&room, "id = ?", booking.RoomID).Error; err == nil {
+		var kost models.Kost
+		if err := s.repo.db.WithContext(ctx).First(&kost, "id = ?", room.KostID).Error; err == nil {
+			s.notify(ctx, kost.OwnerID, "Booking baru", `Kamar `+room.RoomNumber+` di "`+kost.Name+`" di-booking, berlaku 3 hari.`, "/dashboard/bookings")
+		}
 	}
 	return booking, nil
 }
@@ -105,6 +120,7 @@ func (s *Service) Approve(ctx context.Context, ownerID, bookingID uuid.UUID, sta
 		}
 		return nil, response.ErrInternal
 	}
+	s.notify(ctx, b.TenantID, "Booking disetujui", `Booking kamar `+b.Room.RoomNumber+` disetujui. Kontrak sewa aktif mulai `+startDate.Format("02 Jan 2006")+`.`, "/my-bookings")
 	return contract, nil
 }
 
@@ -138,6 +154,7 @@ func (s *Service) Reject(ctx context.Context, ownerID, bookingID uuid.UUID, reas
 	if err != nil {
 		return nil, response.ErrInternal
 	}
+	s.notify(ctx, b.TenantID, "Booking ditolak", `Booking kamar `+b.Room.RoomNumber+` ditolak. Alasan: `+reason, "/my-bookings")
 	return b, nil
 }
 
@@ -193,6 +210,7 @@ func (s *Service) EndContract(ctx context.Context, ownerID, contractID uuid.UUID
 	if err != nil {
 		return nil, response.ErrInternal
 	}
+	s.notify(ctx, c.TenantID, "Kontrak diakhiri", `Kontrak kamar `+c.Room.RoomNumber+` telah diakhiri oleh pemilik.`, "/my-bookings")
 	return c, nil
 }
 

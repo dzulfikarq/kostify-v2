@@ -3,6 +3,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { useState } from "react";
+import { LangProvider } from "@/i18n";
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   // useState ensures the client is created once per request
@@ -10,8 +11,10 @@ export default function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {children}
-      <ReactQueryDevtools initialIsOpen={false} />
+      <LangProvider>
+        {children}
+        <ReactQueryDevtools initialIsOpen={false} />
+      </LangProvider>
     </QueryClientProvider>
   );
 }

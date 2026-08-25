@@ -17,8 +17,14 @@ export interface Kost {
   description: string;
   address: string;
   city: string;
+  province?: string | null;
+  regency?: string | null;
+  district?: string | null;
+  village?: string | null;
+  postal_code?: string | null;
   gender: "putra" | "putri" | "campur";
   status: "pending" | "verified" | "rejected";
+  is_active: boolean;
   rejection_note?: string | null;
   photos: string[];
   facilities: string[];
@@ -32,6 +38,7 @@ export interface Room {
   kost_id: string;
   room_number: string;
   price_monthly: number;
+  luas?: number;
   status: "available" | "reserved" | "occupied" | "maintenance";
   photos: string[];
   facilities: string[];
@@ -68,6 +75,16 @@ export interface Contract {
   ended_at?: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface Notification {
+  id: string;
+  user_id: string;
+  title: string;
+  body: string;
+  link: string;
+  is_read: boolean;
+  created_at: string;
 }
 
 export interface Pagination {

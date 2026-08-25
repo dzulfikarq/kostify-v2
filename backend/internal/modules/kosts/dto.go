@@ -13,6 +13,11 @@ type KostCreateInput struct {
 	Description string   `json:"description"`
 	Address     string   `json:"address"`
 	City        string   `json:"city"`
+	Province    string   `json:"province"`
+	Regency     string   `json:"regency"`
+	District    string   `json:"district"`
+	Village     string   `json:"village"`
+	PostalCode  string   `json:"postal_code"`
 	Gender      string   `json:"gender"`
 	Photos      []string `json:"photos"`
 	Facilities  []string `json:"facilities"`
@@ -23,6 +28,11 @@ type KostUpdateInput struct {
 	Description *string   `json:"description"`
 	Address     *string   `json:"address"`
 	City        *string   `json:"city"`
+	Province    *string   `json:"province"`
+	Regency     *string   `json:"regency"`
+	District    *string   `json:"district"`
+	Village     *string   `json:"village"`
+	PostalCode  *string   `json:"postal_code"`
 	Gender      *string   `json:"gender"`
 	Photos      *[]string `json:"photos"`
 	Facilities  *[]string `json:"facilities"`
@@ -31,6 +41,7 @@ type KostUpdateInput struct {
 type RoomCreateInput struct {
 	RoomNumber   string   `json:"room_number"`
 	PriceMonthly float64  `json:"price_monthly"`
+	Luas         *float64 `json:"luas"`
 	Photos       []string `json:"photos"`
 	Facilities   []string `json:"facilities"`
 	Status       *string  `json:"status"`
@@ -39,6 +50,7 @@ type RoomCreateInput struct {
 type RoomUpdateInput struct {
 	RoomNumber   *string   `json:"room_number"`
 	PriceMonthly *float64  `json:"price_monthly"`
+	Luas         *float64  `json:"luas"`
 	Photos       *[]string `json:"photos"`
 	Facilities   *[]string `json:"facilities"`
 	Status       *string   `json:"status"`
@@ -74,6 +86,9 @@ func (in RoomCreateInput) Validate() []response.ErrorDetail {
 	}
 	if in.PriceMonthly <= 0 {
 		errs = append(errs, response.ErrorDetail{Field: "price_monthly", Message: "must be > 0"})
+	}
+	if in.Luas != nil && (*in.Luas < 0 || *in.Luas > 10000) {
+		errs = append(errs, response.ErrorDetail{Field: "luas", Message: "must be 0-10000 m2"})
 	}
 	if in.Status != nil && !isValidRoomStatus(*in.Status) {
 		errs = append(errs, response.ErrorDetail{Field: "status", Message: "must be available, reserved, occupied or maintenance"})

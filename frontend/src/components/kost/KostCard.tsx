@@ -1,31 +1,101 @@
 import Link from "next/link";
-import { Badge } from "@/components/ui/badge";
+import { MapMarker5 } from "@tailgrids/icons";
 import type { Kost } from "@/services/api/types";
-import { Card } from "@/components/ui/card";
 
 export function KostCard({ kost }: { kost: Kost }) {
   const cover = kost.photos?.[0];
+
   return (
-    <Link href={`/kosts/${kost.id}`} className="group block">
-      <Card className="overflow-hidden p-0 transition hover:shadow-md">
-        <div className="aspect-[4/3] overflow-hidden bg-zinc-100">
-          {cover ? (
-            <img src={cover} alt={kost.name} className="h-full w-full object-cover transition group-hover:scale-[1.02]" />
-          ) : (
-            <div className="flex h-full items-center justify-center text-4xl">🏠</div>
-          )}
-        </div>
-        <div className="space-y-2 p-4">
-          <div className="flex items-start justify-between gap-2">
-            <h3 className="line-clamp-1 font-semibold text-zinc-900 group-hover:underline">{kost.name}</h3>
-            <Badge tone={kost.gender === "putra" ? "blue" : kost.gender === "putri" ? "amber" : "zinc"}>{kost.gender}</Badge>
+    <Link
+      href={`/kosts/${kost.id}`}
+      className="card group block"
+      style={{ textDecoration: "none", color: "inherit" }}
+    >
+      <div style={{ position: "relative", overflow: "hidden" }}>
+        {cover ? (
+          <img
+            src={cover}
+            alt={kost.name}
+            className="card__image"
+            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          />
+        ) : (
+          <div
+            style={{
+              aspectRatio: "4/3",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              background: "var(--color-paper-2)",
+              color: "var(--color-muted)",
+            }}
+          >
+            <MapMarker5 size={40} />
           </div>
-          <p className="line-clamp-1 text-sm text-zinc-500">{kost.city} • {kost.address || "Alamat tersedia"}</p>
-          {kost.facilities?.length ? (
-            <p className="line-clamp-1 text-xs text-zinc-500">{kost.facilities.join(" • ")}</p>
-          ) : null}
+        )}
+        {kost.status === "verified" && (
+          <span className="badge-verified" style={{ position: "absolute", top: 12, right: 12 }}>
+            ✓ Terverifikasi
+          </span>
+        )}
+      </div>
+
+      <div style={{ padding: "16px 18px 18px", display: "flex", flexDirection: "column", gap: 8 }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "flex-start",
+            justifyContent: "space-between",
+            gap: 8,
+          }}
+        >
+          <h3
+            style={{
+              fontSize: "1rem",
+              fontWeight: 600,
+              color: "var(--color-ink-2)",
+              margin: 0,
+              lineHeight: 1.35,
+            }}
+          >
+            {kost.name}
+          </h3>
+          <span className="tag tag--outline" style={{ flexShrink: 0, fontSize: 11, padding: "4px 10px" }}>
+            {kost.gender}
+          </span>
         </div>
-      </Card>
+
+        <p
+          style={{
+            display: "-webkit-box",
+            WebkitLineClamp: 1,
+            WebkitBoxOrient: "vertical",
+            overflow: "hidden",
+            margin: 0,
+            fontSize: 13,
+            color: "var(--color-muted)",
+          }}
+        >
+          {kost.city}
+          {kost.district ? ` · ${kost.district}` : ""}
+        </p>
+
+        {kost.facilities?.length ? (
+          <p
+            style={{
+              display: "-webkit-box",
+              WebkitLineClamp: 1,
+              WebkitBoxOrient: "vertical",
+              overflow: "hidden",
+              margin: 0,
+              fontSize: 12,
+              color: "var(--color-muted)",
+            }}
+          >
+            {kost.facilities.slice(0, 4).join(" · ")}
+          </p>
+        ) : null}
+      </div>
     </Link>
   );
 }

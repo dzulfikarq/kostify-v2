@@ -1,7 +1,8 @@
 'use client';
 
 import { SearchIcon } from '@/components/common/header/icons';
-import { NAV_DATA } from '@/components/common/sidebar/data';
+import { getNavData } from '@/components/common/sidebar/data';
+import { useLang } from '@/i18n';
 import {
     InputGroup,
     InputGroupAddon,
@@ -21,6 +22,7 @@ interface SearchItem {
 }
 
 export default function SearchBar() {
+    const { t } = useLang();
     const [open, setOpen] = useState(false);
     const router = useRouter();
 
@@ -41,7 +43,7 @@ export default function SearchBar() {
     const { itemsBySection } = useMemo(() => {
         const sectionsMap: Record<string, SearchItem[]> = {};
 
-        NAV_DATA.forEach((section) => {
+        getNavData(t).forEach((section) => {
             const sectionLabel = section.label || 'PAGES';
 
             section.items.forEach((item) => {
@@ -112,7 +114,7 @@ export default function SearchBar() {
                             <SearchIcon />
                         </InputGroupAddon>
                         <InputGroupInput
-                            placeholder='Search pages...'
+                            placeholder={t('c.cari_halaman')}
                             className='pointer-events-none cursor-pointer pl-2 text-sm select-none'
                             readOnly
                         />
@@ -143,7 +145,7 @@ export default function SearchBar() {
                             <SearchIcon />
                         </InputGroupAddon>
                         <Command.Input
-                            placeholder='Search pages...'
+                            placeholder={t('c.cari_halaman')}
                             className='w-full min-w-0 flex-1 border-none bg-transparent pl-2 text-sm text-text-primary outline-none placeholder:text-text-tertiary focus:ring-0 focus:outline-none'
                         />
                         <InputGroupAddon align='inline-end'>

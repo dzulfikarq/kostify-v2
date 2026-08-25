@@ -58,6 +58,42 @@ func RequireAuth(db *gorm.DB, getSecret func() string) gin.HandlerFunc {
 	}
 }
 
+// OptionalAuth behaves like RequireAuth but never fails: anonymous requests
+// just proceed without a user in context. Used for public endpoints that
+// show extra data to authenticated owners/admins.
+func OptionalAuth(db *gorm.DB, getSecret func() string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		raw, err := c.Cookie("access_token")
+		if err != nil || raw == "" {
+			c.Next()
+			return
+		}
+		token, err := jwt.Parse(raw, secretProvider(getSecret),
+			jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}),
+			jwt.WithExpirationRequired(),
+		)
+		if err != nil || !token.Valid {
+			c.Next()
+			return
+		}
+		claims := token.Claims.(jwt.MapClaims)
+		sub, _ := claims["sub"].(string)
+		userID, err := uuid.Parse(sub)
+		if err != nil {
+			c.Next()
+			return
+		}
+		var user models.User
+		if err := db.WithContext(c).First(&user, "id = ? AND is_active = true", userID).Error; err != nil {
+			c.Next()
+			return
+		}
+		c.Set(CtxUserKey, &user)
+		c.Set(CtxUserIDKey, userID)
+		c.Next()
+	}
+}
+
 // RequireRoles authorizes by role. Must run after RequireAuth.
 func RequireRoles(roles ...models.UserRole) gin.HandlerFunc {
 	return func(c *gin.Context) {

@@ -1,4 +1,4 @@
-import { NAV_DATA } from "./data";
+import { getNavData } from "./data";
 
 /**
  * Checks if the current pathname matches the target href, or if the pathname is a subpath of the target href.=
@@ -23,7 +23,7 @@ export function isPathActive(href: string, pathname: string): boolean {
  * Returns the group's `title` (used as the Disclosure `id`) or null.
  */
 export function findActiveGroupKey(pathname: string): string | null {
-  for (const section of NAV_DATA) {
+  for (const section of getNavData(() => "")) {
     for (const item of section.items) {
       if (item.items && (item.items as unknown as { url?: string }[]).length > 0) {
         const hasMatch = (item.items as unknown as { url?: string }[]).some((child) => child.url && isPathActive(child.url, pathname));

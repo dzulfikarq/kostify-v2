@@ -12,6 +12,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 
+	"kostify/backend/internal/http/middleware"
 	"kostify/backend/internal/http/response"
 	"kostify/backend/internal/models"
 )
@@ -28,6 +29,24 @@ func (q ListQuery) Validate() []response.ErrorDetail { return nil }
 type UpdateInput struct {
 	IsActive *bool   `json:"is_active"`
 	Role     *string `json:"role"`
+}
+
+type UpdateProfileInput struct {
+	Name  *string `json:"name"`
+	Phone *string `json:"phone"`
+}
+
+func (in UpdateProfileInput) Validate() []response.ErrorDetail {
+	var errs []response.ErrorDetail
+	if in.Name != nil {
+		if l := len(strings.TrimSpace(*in.Name)); l < 2 || l > 120 {
+			errs = append(errs, response.ErrorDetail{Field: "name", Message: "must be 2-120 characters"})
+		}
+	}
+	if in.Phone != nil && len(strings.TrimSpace(*in.Phone)) > 20 {
+		errs = append(errs, response.ErrorDetail{Field: "phone", Message: "must be at most 20 characters"})
+	}
+	return errs
 }
 
 func (in UpdateInput) Validate() []response.ErrorDetail {
@@ -132,6 +151,23 @@ func (s *Service) Update(ctx context.Context, id uuid.UUID, in UpdateInput) (*mo
 	return u, nil
 }
 
+func (s *Service) UpdateProfile(ctx context.Context, id uuid.UUID, in UpdateProfileInput) (*models.User, error) {
+	u, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if in.Name != nil {
+		u.Name = strings.TrimSpace(*in.Name)
+	}
+	if in.Phone != nil {
+		u.Phone = strings.TrimSpace(*in.Phone)
+	}
+	if err := s.repo.Update(ctx, u); err != nil {
+		return nil, err
+	}
+	return u, nil
+}
+
 func (s *Service) Create(ctx context.Context, in CreateInput) (*models.User, error) {
 	hash, err := bcrypt.GenerateFromPassword([]byte(in.Password), 12)
 	if err != nil {
@@ -193,6 +229,28 @@ func (h *Handler) List(c *gin.Context) {
 		totalPages = 1
 	}
 	response.OK(c, gin.H{"items": users, "pagination": gin.H{"page": page, "limit": limit, "total": total, "total_pages": totalPages}}, "OK")
+}
+
+func (h *Handler) UpdateMe(c *gin.Context) {
+	var in UpdateProfileInput
+	if err := c.ShouldBindJSON(&in); err != nil {
+		response.Fail(c, response.ErrBadRequest("Invalid request body"))
+		return
+	}
+	if errs := in.Validate(); len(errs) > 0 {
+		response.Fail(c, response.ErrValidation(errs))
+		return
+	}
+	u, err := h.svc.UpdateProfile(c.Request.Context(), middleware.CurrentUser(c).ID, in)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			response.Fail(c, response.ErrNotFound)
+			return
+		}
+		response.Fail(c, response.ErrInternal)
+		return
+	}
+	response.OK(c, u, "Profile updated")
 }
 
 func (h *Handler) Update(c *gin.Context) {

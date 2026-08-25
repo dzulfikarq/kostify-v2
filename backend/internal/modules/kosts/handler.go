@@ -40,7 +40,7 @@ func (h *Handler) GetPublic(c *gin.Context) {
 		response.Fail(c, response.NewError(http.StatusBadRequest, "BAD_REQUEST", "Invalid kost id"))
 		return
 	}
-	kost, rooms, err := h.svc.GetPublicKost(c.Request.Context(), id)
+	kost, rooms, err := h.svc.GetPublicKost(c.Request.Context(), id, middleware.CurrentUser(c))
 	if err != nil {
 		response.Fail(c, err)
 		return
@@ -280,6 +280,46 @@ func (h *Handler) AdminDeleteKost(c *gin.Context) {
 		return
 	}
 	response.NoContent(c)
+}
+
+func (h *Handler) AdminCreateKost(c *gin.Context) {
+	var in KostCreateInput
+	if err := c.ShouldBindJSON(&in); err != nil {
+		response.Fail(c, response.ErrBadRequest("Invalid request body"))
+		return
+	}
+	if errs := in.Validate(); len(errs) > 0 {
+		response.Fail(c, response.ErrValidation(errs))
+		return
+	}
+	adminID := middleware.CurrentUser(c).ID
+	kost, err := h.svc.AdminCreateKost(c.Request.Context(), adminID, in)
+	if err != nil {
+		response.Fail(c, err)
+		return
+	}
+	response.Created(c, kost, "Kost created by admin")
+}
+
+func (h *Handler) ToggleKostActive(c *gin.Context) {
+	kostID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		response.Fail(c, response.NewError(http.StatusBadRequest, "BAD_REQUEST", "Invalid kost id"))
+		return
+	}
+	var body struct {
+		IsActive *bool `json:"is_active"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || body.IsActive == nil {
+		response.Fail(c, response.ErrValidation([]response.ErrorDetail{{Field: "is_active", Message: "is_active is required"}}))
+		return
+	}
+	kost, err := h.svc.ToggleKostActive(c.Request.Context(), kostID, *body.IsActive)
+	if err != nil {
+		response.Fail(c, err)
+		return
+	}
+	response.OK(c, kost, "Kost active status updated")
 }
 
 func paginated(items any, page, limit int, total int64) gin.H {

@@ -80,7 +80,7 @@ function KostsContent() {
             <button
               key={g.value}
               onClick={() => update({ gender: g.value || undefined })}
-              className={`rounded-full border px-3 py-1.5 text-sm ${gender === g.value ? "bg-zinc-900 text-white border-zinc-900" : "bg-white hover:bg-zinc-50"}`}
+              className={`chip ${gender === g.value ? "chip--active" : ""}`}
             >
               {g.label}
             </button>
@@ -91,7 +91,8 @@ function KostsContent() {
               const [s, o] = e.target.value.split(":");
               update({ sort: s, order: o });
             }}
-            className="rounded-full border bg-white px-3 py-1.5 text-sm"
+            className="chip"
+            style={{ appearance: "auto", cursor: "pointer" }}
           >
             <option value="created_at:desc">Terbaru</option>
             <option value="created_at:asc">Terlama</option>
@@ -122,7 +123,7 @@ function KostsContent() {
           />
         ) : (
           <>
-            <p className="mb-3 text-sm text-zinc-500">
+            <p className="mb-3 text-sm" style={{ color: "var(--color-muted)" }}>
               {data.pagination.total} kost ditemukan • Halaman {data.pagination.page} dari {data.pagination.total_pages}
             </p>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
