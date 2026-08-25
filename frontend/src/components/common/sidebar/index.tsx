@@ -2,6 +2,7 @@
 
 import { CollapsibleGroup } from '@/components/tailgrids/core/collapsible';
 import { cn } from '@/utils/cn';
+import { useMe } from '@/hooks/useAuth';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useMemo, useState } from 'react';
@@ -23,6 +24,17 @@ export default function Sidebar({
     onItemClick?: () => void;
 }) {
     const pathname = usePathname();
+    const { data: user } = useMe();
+    const role = user?.role as string | undefined;
+
+    const filteredNav = useMemo(() => {
+        return NAV_DATA.map((section) => ({
+            ...section,
+            items: (section.items as unknown as Array<{ title: string; icon: React.ReactNode; url: string; items: unknown[]; roles?: readonly string[] }>).filter(
+                (item) => !item.roles || (role && (item.roles as readonly string[]).includes(role))
+            ),
+        })).filter((section) => section.items.length > 0);
+    }, [role]);
 
     // Compute which group should be open based on the current route
     const activeGroupKey = useMemo(
@@ -80,7 +92,7 @@ export default function Sidebar({
                     expandedKeys={expandedKeys}
                     onExpandedChange={setExpandedKeys}
                 >
-                    {NAV_DATA.map((section) => (
+                    {filteredNav.map((section) => (
                         <div key={section.label}>
                             {/* Expanded: show section label | Collapsed: show divider between sections */}
                             {isSidebarOpen ? (
@@ -107,8 +119,8 @@ export default function Sidebar({
                                         id={item.title}
                                         icon={item.icon}
                                         label={item.title}
-                                        href={item.url}
-                                        items={item.items}
+                                        href={(item as unknown as { url: string }).url}
+                                        items={(item as unknown as { items: { title: string; url?: string }[] }).items as unknown as { title: string; url?: string }[]}
                                         collapsed={!isSidebarOpen}
                                         onItemClick={onItemClick}
                                     />
