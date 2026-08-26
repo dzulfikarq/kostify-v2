@@ -11,7 +11,7 @@ import (
 const expireSQL = `
 WITH expired AS (
     UPDATE bookings SET status = 'expired', updated_at = now()
-    WHERE status = 'pending' AND expires_at <= now()
+    WHERE status IN ('pending','processing') AND expires_at <= now()
     RETURNING room_id
 ), freed AS (
     UPDATE rooms r SET status = 'available', updated_at = now()
@@ -21,7 +21,7 @@ WITH expired AS (
 )
 SELECT count(*) FROM freed`
 
-// ExpirePendingBookings atomically expires stale pending bookings and
+// ExpirePendingBookings atomically expires stale pending/processing bookings and
 // frees their rooms in a single atomic statement.
 func ExpirePendingBookings(ctx context.Context, db *gorm.DB) (int64, error) {
 	var freed int64

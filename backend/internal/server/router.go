@@ -138,6 +138,7 @@ func NewRouter(deps Deps) *gin.Engine {
 		owner.DELETE("/rooms/:id", kostH.DeleteRoom)
 
 		owner.GET("/bookings", bookingH.ListOwner)
+		owner.PATCH("/bookings/:id/process", bookingH.MarkProcessing)
 		owner.PATCH("/bookings/:id/approve", bookingH.Approve)
 		owner.PATCH("/bookings/:id/reject", bookingH.Reject)
 		owner.GET("/contracts", bookingH.ListOwnerContracts)

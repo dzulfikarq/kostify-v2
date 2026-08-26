@@ -119,7 +119,8 @@ func (s *Service) Cancel(ctx context.Context, tenantID, bookingID uuid.UUID) (*m
 	return b, nil
 }
 
-func (s *Service) Approve(ctx context.Context, ownerID, bookingID uuid.UUID, startDateStr string, duration int) (*models.Contract, error) {
+// MarkProcessing: owner menandai survey sedang berjalan (pending → processing).
+func (s *Service) MarkProcessing(ctx context.Context, ownerID, bookingID uuid.UUID) (*models.Booking, error) {
 	b, kost, err := s.repo.GetBookingWithKostOwner(ctx, bookingID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -131,7 +132,36 @@ func (s *Service) Approve(ctx context.Context, ownerID, bookingID uuid.UUID, sta
 		return nil, response.ErrNotFound
 	}
 	if b.Status != models.BookingPending {
-		return nil, response.ErrValidation([]response.ErrorDetail{{Field: "status", Message: "only pending bookings can be approved"}})
+		return nil, response.ErrValidation([]response.ErrorDetail{{Field: "status", Message: "only pending bookings can be processed"}})
+	}
+	now := time.Now()
+	b.Status = models.BookingProcessing
+	err = s.repo.db.WithContext(ctx).Model(&models.Booking{}).Where("id = ? AND status = ?", b.ID, models.BookingPending).
+		Updates(map[string]any{"status": models.BookingProcessing, "updated_at": now}).Error
+	if err != nil {
+		return nil, response.ErrInternal
+	}
+	surveyInfo := "Owner akan menghubungi Anda untuk survey."
+	if b.SurveyDate != nil {
+		surveyInfo = "Jadwal survey: " + b.SurveyDate.Format("02 Jan 2006") + "."
+	}
+	s.notify(ctx, b.TenantID, "Booking diproses", `Booking kamar `+b.Room.RoomNumber+` sedang diproses. `+surveyInfo, "/my-bookings")
+	return b, nil
+}
+
+func (s *Service) Approve(ctx context.Context, ownerID, bookingID uuid.UUID, startDateStr string, duration int) (*models.Contract, error) {
+	b, kost, err := s.repo.GetBookingWithKostOwner(ctx, bookingID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, response.ErrNotFound
+		}
+		return nil, response.ErrInternal
+	}
+	if kost.OwnerID != ownerID {
+		return nil, response.ErrNotFound
+	}
+	if b.Status != models.BookingPending && b.Status != models.BookingProcessing {
+		return nil, response.ErrValidation([]response.ErrorDetail{{Field: "status", Message: "only pending or processing bookings can be approved"}})
 	}
 	if b.ExpiresAt.Before(time.Now()) {
 		return nil, response.ErrValidation([]response.ErrorDetail{{Field: "status", Message: "booking has expired"}})
@@ -163,7 +193,7 @@ func (s *Service) Reject(ctx context.Context, ownerID, bookingID uuid.UUID, reas
 		return nil, response.ErrNotFound
 	}
 	if b.Status != models.BookingPending {
-		return nil, response.ErrValidation([]response.ErrorDetail{{Field: "status", Message: "only pending bookings can be rejected"}})
+		return nil, response.ErrValidation([]response.ErrorDetail{{Field: "status", Message: "only pending or processing bookings can be rejected"}})
 	}
 	now := time.Now()
 	b.Status = models.BookingRejected

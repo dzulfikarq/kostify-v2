@@ -88,6 +88,21 @@ func (h *Handler) ListOwner(c *gin.Context) {
 	response.OK(c, paginated(bookings, page, limit, total), "OK")
 }
 
+func (h *Handler) MarkProcessing(c *gin.Context) {
+	bookingID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		response.Fail(c, response.NewError(http.StatusBadRequest, "BAD_REQUEST", "Invalid booking id"))
+		return
+	}
+	ownerID := middleware.CurrentUser(c).ID
+	booking, err := h.svc.MarkProcessing(c.Request.Context(), ownerID, bookingID)
+	if err != nil {
+		response.Fail(c, err)
+		return
+	}
+	response.OK(c, booking, "Booking diproses, survey berjalan")
+}
+
 func (h *Handler) Approve(c *gin.Context) {
 	bookingID, err := uuid.Parse(c.Param("id"))
 	if err != nil {

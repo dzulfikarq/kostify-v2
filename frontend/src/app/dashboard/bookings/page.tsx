@@ -40,6 +40,15 @@ export default function BookingsPage() {
     onError: (e: any) => toast.error(e.response?.data?.error?.message || "Gagal menyetujui"),
   });
 
+  const processMut = useMutation({
+    mutationFn: (id: string) => dashboardApi.processBooking(id),
+    onSuccess: () => {
+      toast.success("Booking diproses — survey berjalan");
+      qc.invalidateQueries({ queryKey: ["owner-bookings"] });
+    },
+    onError: (e: any) => toast.error(e.response?.data?.error?.message || "Gagal memproses"),
+  });
+
   const rejectMut = useMutation({
     mutationFn: (id: string) => dashboardApi.rejectBooking(id, { reason: "Tidak cocok setelah survey" }),
     onSuccess: () => {
@@ -60,6 +69,7 @@ export default function BookingsPage() {
       <div className="flex flex-wrap gap-1.5">
         {[
           { label: t("status.pending"), value: "pending" },
+          { label: "Processing", value: "processing" },
           { label: t("status.verified"), value: "approved" },
           { label: t("status.rejected"), value: "rejected" },
           { label: "Expired", value: "expired" },
@@ -110,14 +120,17 @@ export default function BookingsPage() {
                       <p className="text-xs text-zinc-500">{b.tenant?.email || ""}</p>
                     </button>
                   </TableCell>
-                  <TableCell><Badge tone={b.status === "pending" ? "amber" : b.status === "approved" ? "green" : b.status === "rejected" ? "red" : "zinc"}>{b.status}</Badge></TableCell>
+                  <TableCell><Badge tone={b.status === "pending" ? "amber" : b.status === "processing" ? "blue" : b.status === "approved" ? "green" : b.status === "rejected" ? "red" : "zinc"}>{b.status}</Badge></TableCell>
                   <TableCell>
                     <p className="text-xs">{formatDateTime(b.expires_at)}</p>
                     <p className="mt-1 text-xs text-zinc-500">Dibuat {formatDateTime(b.created_at)}</p>
                   </TableCell>
                   <TableCell>
-                    {b.status === "pending" ? (
+                    {b.status === "pending" || b.status === "processing" ? (
                       <div className="flex justify-end gap-1.5">
+                        {b.status === "pending" && (
+                          <Button variant="outline" size="sm" onClick={() => processMut.mutate(b.id)}>Proses</Button>
+                        )}
                         <Button size="sm" onClick={() => setApproveId(b.id)} className="shadow-sm">{t("bk.setujui")}</Button>
                         <Button variant="outline" size="sm" onClick={() => setRejectId(b.id)}>{t("bk.tolak")}</Button>
                       </div>

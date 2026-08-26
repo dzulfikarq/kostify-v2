@@ -22,6 +22,7 @@ export const dashboardApi = {
   // bookings owner
   listOwnerBookings: (params?: Record<string, unknown>) =>
     api.get<{ data: Paginated<Booking> }>("/owner/bookings", { params }).then((r) => r.data.data),
+  processBooking: (id: string) => api.patch(`/owner/bookings/${id}/process`).then((r) => r.data),
   approveBooking: (id: string, body: { start_date: string; duration_months: number }) =>
     api.patch(`/owner/bookings/${id}/approve`, body).then((r) => r.data),
   rejectBooking: (id: string, body: { reason: string }) =>

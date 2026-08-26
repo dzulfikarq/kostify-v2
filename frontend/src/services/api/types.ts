@@ -54,7 +54,7 @@ export interface Booking {
   room?: Room;
   tenant_id: string;
   tenant?: User;
-  status: "pending" | "approved" | "rejected" | "expired" | "cancelled";
+  status: "pending" | "processing" | "approved" | "rejected" | "expired" | "cancelled";
   reject_reason?: string | null;
   survey_date?: string | null;
   expires_at: string;

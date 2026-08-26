@@ -114,6 +114,7 @@ type BookingStatus string
 
 const (
 	BookingPending   BookingStatus = "pending"
+	BookingProcessing BookingStatus = "processing"
 	BookingApproved  BookingStatus = "approved"
 	BookingRejected  BookingStatus = "rejected"
 	BookingExpired   BookingStatus = "expired"
