@@ -44,7 +44,7 @@ Marketplace booking kost tanpa pembayaran online. Penyewa mencari kost terverifi
 ```
 Kost: pending ─survey teknisi (approve)→ verified | ─reject/teknisi tolak→ rejected
 Room: available ↔ reserved (booking) → occupied (kontrak) → available
-Booking: pending → approved→contract | rejected | expired (72h) | cancelled (tenant)
+Booking: pending → processing (survey jalan) → approved→contract | rejected | expired (72h) | cancelled (tenant)
 Contract: active → ended
 Assignment: assigned → surveying → approved/rejected (decided)
 User: register → email_verified (login diblokir sebelum verify; user lama otomatis verified)
