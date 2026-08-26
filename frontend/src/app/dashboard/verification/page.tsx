@@ -44,7 +44,7 @@ export default function VerificationPage() {
     queryFn: () => surveyApi.listAssignmentsAdmin(),
     enabled: user?.role === "super_admin",
   });
-  const assignedKostIds = new Set((assignmentsQ.data || []).filter((a) => !a.decided_at).map((a) => a.kost_id));
+  const assignmentByKost = new Map((assignmentsQ.data || []).filter((a) => !a.decided_at).map((a) => [a.kost_id, a]));
 
   const [assignTarget, setAssignTarget] = useState<null | { id: string; name: string }>(null);
   const [assignTeknisi, setAssignTeknisi] = useState("");
@@ -112,7 +112,15 @@ export default function VerificationPage() {
                       <Button size="sm" className="bg-zinc-900 hover:bg-black" onClick={() => { setAssignTarget({ id: k.id, name: k.name }); setAssignTeknisi(""); setAssignDate(""); }}>
                         Survey Teknisi
                       </Button>
-                      {assignedKostIds.has(k.id) && <Badge tone="green">Sudah diassign</Badge>}
+                      {(() => {
+                        const asg = assignmentByKost.get(k.id);
+                        if (!asg) return null;
+                        return (
+                          <Badge tone={asg.status === "surveying" ? "green" : "amber"}>
+                            {asg.status === "assigned" ? "Ditugaskan" : asg.status === "surveying" ? "Processing" : "Sudah diassign"}
+                          </Badge>
+                        );
+                      })()}
                     </div>
                   </TableCell>
                 </TableRow>

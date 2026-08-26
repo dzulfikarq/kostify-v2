@@ -71,7 +71,9 @@ export default function TeknisiDashboardPage() {
                       {[a.kost?.village, a.kost?.district, a.kost?.regency].filter(Boolean).join(", ") || a.kost?.city} • {a.kost?.gender}
                     </p>
                   </div>
-                  <Badge tone="amber">{a.status}</Badge>
+                  <Badge tone={a.status === "surveying" ? "green" : "amber"}>
+                    {a.status === "assigned" ? "Ditugaskan" : a.status === "surveying" ? "Processing" : a.status}
+                  </Badge>
                   <div className="flex gap-1.5">
                     <Link href={`/kosts/${a.kost_id}`} target="_blank"><Button variant="outline" size="sm">Lihat</Button></Link>
                     <Button size="sm" onClick={() => setDecideTarget({ id: a.id, name: a.kost?.name || "Kost", decision: "approved" })} className="shadow-sm">Setujui</Button>

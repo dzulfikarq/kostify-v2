@@ -94,10 +94,14 @@ func (s *Service) AssignTech(ctx context.Context, adminID, kostID, teknisiID uui
 		return nil, response.NewError(400, "BAD_REQUEST", "User bukan teknisi")
 	}
 	a := &models.KostAssignment{
-		KostID:     kostID,
-		TeknisiID:  teknisiID,
-		Status:     models.AssignmentAssigned,
+		KostID:    kostID,
+		TeknisiID: teknisiID,
+		Status:    models.AssignmentAssigned,
 		AssignedBy: &adminID,
+	}
+	// Ada jadwal event → langsung masuk tahap survey (processing).
+	if scheduledAt != nil {
+		a.Status = models.AssignmentSurveying
 	}
 	if err := s.repo.CreateAssignment(ctx, a); err != nil {
 		return nil, response.ErrInternal
