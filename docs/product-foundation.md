@@ -57,11 +57,11 @@ Room:     available ◀──▶ reserved        (booking dibuat / batal-expired
           reserved ──approve──▶ occupied (kontrak aktif)
           available ◀──▶ maintenance     (owner set, hanya dari available)
 
-Booking:  pending ──▶ approved   (owner setuju setelah survey)
-          pending ──▶ rejected   (owner tolak + alasan)
-          pending ──▶ expired    (lewat 3 hari, job otomatis)
-          pending ──▶ cancelled  (dibatalkan tenant sendiri)
-
+Booking:  pending -> processing (owner tandai survey berjalan)
+          pending/processing -> approved   (owner setuju setelah survey)
+          pending/processing -> rejected   (owner tolak + alasan)
+          pending/processing -> expired    (lewat 72 jam, job otomatis)
+          pending -> cancelled  (dibatalkan tenant sendiri)
 Contract: active ──▶ ended       (masa habis otomatis / owner akhiri)
 ```
 
@@ -152,7 +152,7 @@ erDiagram
         uuid id PK
         uuid room_id FK
         uuid tenant_id FK
-        booking_status status "pending|approved|rejected|expired|cancelled"
+        booking_status status "pending|processing|approved|rejected|expired|cancelled"
         text reject_reason
         date survey_date "0-5 hari dari hari ini"
         timestamptz expires_at
@@ -351,7 +351,7 @@ Satu aplikasi Next.js App Router — analogi WordPress: `/` situs publik, `/dash
 /dashboard/kosts         Daftar kost saya (+ status verifikasi)
 /dashboard/kosts/new     Form ajukan kost (→ pending verifikasi)
 /dashboard/kosts/[id]    Detail & edit kost + kelola kamar
-/dashboard/bookings      Inbox booking: tab Pending (countdown) / Riwayat; aksi Approve (modal isi tanggal+ durasi) / Reject (modal alasan)
+/dashboard/bookings      Inbox booking: tab Pending/Processing/Riwayat; aksi Proses (survey jalan), Approve (modal tanggal+durasi), Reject (modal alasan)
 /dashboard/contracts     Kontrak aktif; aksi akhiri sewa (confirm dialog)
 /dashboard/verification  [super admin] Antrian verifikasi: assign teknisi (+tanda "Sudah diassign"), chat pemilik
 /dashboard/teknisi       [teknisi] Tugas survey: lihat kost, setujui/tolak + catatan
